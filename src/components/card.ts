@@ -1,23 +1,32 @@
 import { App, TFile } from 'obsidian';
 
-export type OrbitActivity = {
+export type OrbitActivityBase = {
 	file: TFile;
 	name: string;
 	tags: string[];
 	lastDone: Date | null;
 	status: string;
 	daysAgo: number | null;
-	weeklyTime: number | null;
-	weeklyGoal: number | null;
 };
+
+export type TimeBasedActivity = OrbitActivityBase & {
+	trackingType: 'time';
+	weeklyTime: number;
+	weeklyTimeGoal: number;
+};
+
+export type SessionBasedActivity = OrbitActivityBase & {
+	trackingType: 'sessions';
+	weeklySessions: number;
+	weeklySessionsGoal: number;
+};
+
+export type OrbitActivity = TimeBasedActivity | SessionBasedActivity;
 
 export class ActivityCard {
 	constructor(private app: App) {}
 
-	renderActivityCard(
-		list: HTMLElement,
-		activity: OrbitActivity,
-	): void {
+	renderActivityCard(list: HTMLElement, activity: OrbitActivity): void {
 		const card = list.createDiv({
 			cls: 'orbit-card',
 		});
@@ -50,17 +59,36 @@ export class ActivityCard {
 			cls: 'orbit-progress-fill',
 		});
 
-		const goal = activity.weeklyGoal ?? 0;
-		const spent = activity.weeklyTime ?? 0;
-		const percent = goal > 0 ? Math.round((spent / goal) * 100) : 0;
+        const dayOfWeek = new Date().getDay();
 
-		progressFill.style.width = `${Math.min(percent, 100)}%`;
+		const weekProgress = (dayOfWeek + 1) / 7;
+
+		const actual =
+			activity.trackingType === 'time'
+				? activity.weeklyTime
+				: activity.weeklySessions;
+
+		const goal =
+			activity.trackingType === 'time'
+				? activity.weeklyTimeGoal
+				: activity.weeklySessionsGoal;
+
+		const percent = goal > 0 ? Math.min(100, (actual / goal) * 100) : 0;
+
+		const expected = goal * weekProgress;
+		const ratio = expected > 0 ? actual / expected : 0;
+
+		const colorClass =
+			ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
+
+		progressFill.style.width = `${percent}%`;
+		progressFill.classList.remove('is-high', 'is-medium', 'is-low');
+		progressFill.classList.add(colorClass);
 
 		progress.createDiv({
-			cls: 'orbit-progress-percent',
-			text: `${percent}%`,
+			cls: `orbit-progress-percent ${colorClass}`,
+			text: `${Math.round(percent)}%`,
 		});
-
 		const expanded = card.createDiv({
 			cls: 'orbit-expanded',
 		});
@@ -117,8 +145,9 @@ export class ActivityCard {
 						frontmatter.weekly_time =
 							(Number(frontmatter.weekly_time) || 0) + minutes;
 
-						frontmatter.last_done =
-							window.moment().format('YYYY-MM-DD');
+						frontmatter.last_done = window
+							.moment()
+							.format('YYYY-MM-DD');
 					},
 				);
 			} catch (error) {

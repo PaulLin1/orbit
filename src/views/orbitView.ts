@@ -1,9 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, setIcon } from 'obsidian';
-import { ActivityCard, OrbitActivity} from '../components/card'
+import { ActivityCard, OrbitActivity } from '../components/card';
 
 // ─── Types ──────────────────────────────────────────────
-
-
 
 type OrbitTier = {
 	name: string;
@@ -42,12 +40,11 @@ const TIER_CONFIG = {
 // ─── Feed View ──────────────────────────────────────────
 
 export class FeedView extends ItemView {
-		private activityCard: ActivityCard;
+	private activityCard: ActivityCard;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
-				this.activityCard = new ActivityCard(this.app);
-
+		this.activityCard = new ActivityCard(this.app);
 	}
 
 	getViewType(): string {
@@ -57,7 +54,6 @@ export class FeedView extends ItemView {
 	getDisplayText(): string {
 		return 'Orbit';
 	}
-
 
 	// ─── Lifecycle ──────────────────────────────────────
 
@@ -165,7 +161,6 @@ export class FeedView extends ItemView {
 
 		for (const activity of activities) {
 			this.activityCard.renderActivityCard(list, activity);
-
 		}
 	}
 
@@ -215,16 +210,30 @@ export class FeedView extends ItemView {
 					})()
 				: null;
 
-			activities.push({
+			const base = {
 				file,
 				name: frontmatter.title ?? file.basename,
 				tags: tags.filter((tag) => tag.replace(/^#/, '') !== 'orbit'),
 				lastDone,
 				daysAgo,
 				status: frontmatter.status ?? 'active',
-				weeklyTime: frontmatter.weekly_time,
-				weeklyGoal: frontmatter.weekly_goal,
-			});
+			};
+
+			if (frontmatter.tracking_type === 'sessions') {
+				activities.push({
+					...base,
+					trackingType: 'sessions',
+					weeklySessions: frontmatter.weekly_sessions ?? 0,
+					weeklySessionsGoal: frontmatter.weekly_sessions_goal ?? 0,
+				});
+			} else {
+				activities.push({
+					...base,
+					trackingType: 'time',
+					weeklyTime: frontmatter.weekly_time ?? 0,
+					weeklyTimeGoal: frontmatter.weekly_time_goal ?? 0,
+				});
+			}
 		}
 
 		return activities;
