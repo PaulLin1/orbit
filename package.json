@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "orbit",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Your interests are always in motion. Some take center stage, while others drift away. Bring them back into orbit.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
