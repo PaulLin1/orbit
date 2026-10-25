@@ -1,35 +1,40 @@
 import { App, TFile } from 'obsidian';
+import { DailyLogService } from '../dailyLogService';
 
-export type OrbitActivityBase = {
+export type TrackingType = 'time' | 'session';
+
+import { formatLastDone } from '../dateHelpers';
+export type OrbitActivity = {
+	id: string;
 	file: TFile;
 	name: string;
 	tags: string[];
-	lastDone: Date | null;
 	status: string;
+
+	// Derived from daily logs
+	lastDone: Date | null;
 	daysAgo: number | null;
-};
-
-export type TimeBasedActivity = OrbitActivityBase & {
-	trackingType: 'time';
+	dailyTime: number;
+    // dailySessions is just count in daily log
 	weeklyTime: number;
-	weeklyTimeGoal: number;
-};
-
-export type SessionBasedActivity = OrbitActivityBase & {
-	trackingType: 'sessions';
 	weeklySessions: number;
-	weeklySessionsGoal: number;
-};
 
-export type OrbitActivity = TimeBasedActivity | SessionBasedActivity;
+	// Activity configuration
+	trackingType: TrackingType;
+	weeklyTimeGoal: number | null;
+	weeklySessionsGoal: number | null;
+	sessionLength: number | null;
+};
 
 export class ActivityCard {
 	constructor(private app: App) {}
 
-	renderActivityCard(list: HTMLElement, activity: OrbitActivity): void {
+	renderActivityCard(list: HTMLElement, activity: OrbitActivity, dailyLogService: DailyLogService): void {
 		const card = list.createDiv({
 			cls: 'orbit-card',
 		});
+
+        // Header
 
 		const row = card.createDiv({
 			cls: 'orbit-card-row',
@@ -43,135 +48,166 @@ export class ActivityCard {
 		info.createEl('p', { text: activity.tags.join(' · ') });
 
 		row.createEl('span', {
-			text: this.formatLastDone(activity.daysAgo),
+			text: formatLastDone(activity.daysAgo),
 			cls: 'orbit-time',
 		});
 
-		const progress = card.createDiv({
-			cls: 'orbit-card-row orbit-progress',
-		});
+        // Progress bar
+    
+		// const progress = card.createDiv({
+		// 	cls: 'orbit-card-row orbit-progress',
+		// });
 
-		const progressBar = progress.createDiv({
-			cls: 'orbit-progress-bar',
-		});
+		// const progressBar = progress.createDiv({
+		// 	cls: 'orbit-progress-bar',
+		// });
 
-		const progressFill = progressBar.createDiv({
-			cls: 'orbit-progress-fill',
-		});
+		// const progressFill = progressBar.createDiv({
+		// 	cls: 'orbit-progress-fill',
+		// });
 
-        const dayOfWeek = new Date().getDay();
+		// const dayOfWeek = new Date().getDay();
 
-		const weekProgress = (dayOfWeek + 1) / 7;
+		// const weekProgress = (dayOfWeek + 1) / 7;
 
-		const actual =
-			activity.trackingType === 'time'
-				? activity.weeklyTime
-				: activity.weeklySessions;
+		// const actual =
+		// 	activity.trackingType === 'time'
+		// 		? activity.weeklyTime
+		// 		: activity.weeklySessions;
 
-		const goal =
-			activity.trackingType === 'time'
-				? activity.weeklyTimeGoal
-				: activity.weeklySessionsGoal;
+		// const goal =
+		// 	activity.trackingType === 'time'
+		// 		? activity.weeklyTimeGoal
+		// 		: activity.weeklySessionsGoal;
 
-		const percent = goal > 0 ? Math.min(100, (actual / goal) * 100) : 0;
+		// const percent = goal > 0 ? Math.min(100, (actual / goal) * 100) : 0;
 
-		const expected = goal * weekProgress;
-		const ratio = expected > 0 ? actual / expected : 0;
+		// const expected = goal * weekProgress;
+		// const ratio = expected > 0 ? actual / expected : 0;
+		// const colorClass =
+		// 	ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
 
-		const colorClass =
-			ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
+		// progressFill.style.width = `${percent}%`;
+		// progressFill.classList.remove('is-high', 'is-medium', 'is-low');
+		// progressFill.classList.add(colorClass);
 
-		progressFill.style.width = `${percent}%`;
-		progressFill.classList.remove('is-high', 'is-medium', 'is-low');
-		progressFill.classList.add(colorClass);
+		// progress.createDiv({
+		// 	cls: `orbit-progress-percent ${colorClass}`,
+		// 	text: `${Math.round(percent)}%`,
+		// });
 
-		progress.createDiv({
-			cls: `orbit-progress-percent ${colorClass}`,
-			text: `${Math.round(percent)}%`,
-		});
-		const expanded = card.createDiv({
-			cls: 'orbit-expanded',
-		});
-		expanded.style.display = 'none';
+        // Adding time
 
-		const timeHeader = expanded.createDiv({
-			cls: 'orbit-time-header',
-		});
+		// const expanded = card.createDiv({
+		// 	cls: 'orbit-expanded',
+		// });
+		// expanded.style.display = 'none';
 
-		const timeValue = timeHeader.createEl('span', {
-			text: '30 min',
-			cls: 'orbit-time-value',
-		});
+		// const controls = expanded.createDiv({
+		// 	cls: 'orbit-time-controls',
+		// });
 
-		const controls = expanded.createDiv({
-			cls: 'orbit-time-controls',
-		});
+		// if (activity.sessionLength != null) {
+		// 	const sessionButton = controls.createEl('button', {
+		// 		text: 'Add Session',
+		// 		cls: 'orbit-confirm-button',
+		// 	});
 
-		const slider = controls.createEl('input', {
-			type: 'range',
-			cls: 'orbit-time-slider',
-			attr: {
-				min: '30',
-				max: '240',
-				step: '30',
-				value: '30',
-			},
-		});
+		// 	sessionButton.addEventListener('click', async (event) => {
+		// 		event.stopPropagation();
 
-		slider.addEventListener('input', () => {
-			const minutes = Number(slider.value);
+		// 		try {
+		// 			await this.app.fileManager.processFrontMatter(
+		// 				activity.file,
+		// 				(frontmatter) => {
+		// 					frontmatter.weekly_time =
+		// 						(Number(frontmatter.weekly_time) || 0) +
+		// 						frontmatter.session_length;
 
-			timeValue.setText(
-				minutes >= 60
-					? `${minutes / 60} hr${minutes > 60 ? 's' : ''}`
-					: `${minutes} min`,
-			);
-		});
+		// 					frontmatter.daily_time =
+		// 						(Number(frontmatter.daily_time) || 0) +
+		// 						frontmatter.session_length;
 
-		const confirmButton = controls.createEl('button', {
-			text: 'Add',
-			cls: 'orbit-confirm-button',
-		});
+		// 					frontmatter.weekly_sessions =
+		// 						(Number(frontmatter.weekly_sessions) || 0) + 1;
 
-		confirmButton.addEventListener('click', async (event) => {
-			event.stopPropagation();
+		// 					frontmatter.last_done = window
+		// 						.moment()
+		// 						.format('YYYY-MM-DD');
+		// 				},
+		// 			);
+		// 		} catch (error) {
+		// 			console.error('Failed to add session:', error);
+		// 		}
+		// 	});
+		// } else {
+		// 	const timeValue = controls.createDiv({
+		// 		cls: 'orbit-time-value',
+		// 		text: '15 min',
+		// 	});
 
-			const minutes = Number(slider.value);
+		// 	const slider = controls.createEl('input', {
+		// 		type: 'range',
+		// 		cls: 'orbit-time-slider',
+		// 		attr: {
+		// 			min: '15',
+		// 			max: '120',
+		// 			step: '15',
+		// 			value: '15',
+		// 		},
+		// 	});
 
-			try {
-				await this.app.fileManager.processFrontMatter(
-					activity.file,
-					(frontmatter) => {
-						frontmatter.weekly_time =
-							(Number(frontmatter.weekly_time) || 0) + minutes;
+		// 	slider.addEventListener('input', () => {
+		// 		const minutes = Number(slider.value);
 
-						frontmatter.last_done = window
-							.moment()
-							.format('YYYY-MM-DD');
-					},
-				);
-			} catch (error) {
-				console.error('Failed to update weekly time:', error);
-			}
-		});
+		// 		timeValue.setText(
+		// 			minutes >= 60
+		// 				? `${minutes / 60} hr${minutes > 60 ? 's' : ''}`
+		// 				: `${minutes} min`,
+		// 		);
+		// 	});
 
-		card.addEventListener('click', () => {
-			const isExpanded = expanded.style.display !== 'none';
+		// 	const confirmButton = controls.createEl('button', {
+		// 		text: 'Add',
+		// 		cls: 'orbit-confirm-button',
+		// 	});
 
-			expanded.style.display = isExpanded ? 'none' : 'block';
-			card.classList.toggle('is-expanded', !isExpanded);
-		});
+		// 	confirmButton.addEventListener('click', async (event) => {
+		// 		event.stopPropagation();
 
-		expanded.addEventListener('click', (event) => {
-			event.stopPropagation();
-		});
-	}
+		// 		const minutes = Number(slider.value);
 
-	private formatLastDone(daysAgo: number | null): string {
-		if (daysAgo === null) return 'Never';
-		if (daysAgo === 0) return 'Today';
-		if (daysAgo === 1) return 'Yesterday';
+		// 		try {
+		// 			await this.app.fileManager.processFrontMatter(
+		// 				activity.file,
+		// 				(frontmatter) => {
+		// 					frontmatter.weekly_time =
+		// 						(Number(frontmatter.weekly_time) || 0) +
+		// 						minutes;
 
-		return `${daysAgo} days ago`;
+		// 					frontmatter.daily_time =
+		// 						(Number(frontmatter.daily_time) || 0) + minutes;
+
+		// 					frontmatter.last_done = window
+		// 						.moment()
+		// 						.format('YYYY-MM-DD');
+		// 				},
+		// 			);
+		// 		} catch (error) {
+		// 			console.error('Failed to update weekly time:', error);
+		// 		}
+		// 	});
+		// }
+
+		// card.addEventListener('click', () => {
+		// 	const isExpanded = expanded.style.display !== 'none';
+
+		// 	expanded.style.display = isExpanded ? 'none' : 'block';
+		// 	card.classList.toggle('is-expanded', !isExpanded);
+		// });
+
+		// expanded.addEventListener('click', (event) => {
+		// 	event.stopPropagation();
+		// });
 	}
 }

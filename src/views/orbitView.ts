@@ -1,5 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, setIcon } from 'obsidian';
 import { ActivityCard, OrbitActivity } from '../components/card';
+import { DailyLogService } from '../dailyLogService';
+import { parseDate } from '../dateHelpers';
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -41,10 +43,12 @@ const TIER_CONFIG = {
 
 export class FeedView extends ItemView {
 	private activityCard: ActivityCard;
+	private dailyLogService: DailyLogService;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
 		this.activityCard = new ActivityCard(this.app);
+		this.dailyLogService = new DailyLogService(this.app);
 	}
 
 	getViewType(): string {
@@ -58,14 +62,14 @@ export class FeedView extends ItemView {
 	// ─── Lifecycle ──────────────────────────────────────
 
 	async onOpen(): Promise<void> {
-		this.renderFeed();
+		this.renderAll();
 	}
 
 	async onClose(): Promise<void> {}
 
 	// ─── Main Rendering ─────────────────────────────────
 
-	private renderFeed(): void {
+	private async renderAll(): Promise<void> {
 		const root = this.contentEl;
 
 		root.empty();
@@ -73,7 +77,7 @@ export class FeedView extends ItemView {
 
 		this.renderHeader(root);
 
-		const activities = this.getActivities();
+		const activities = await this.getActivities();
 
 		const stats = this.getStats(activities);
 		this.renderStats(root, stats);
@@ -100,12 +104,15 @@ export class FeedView extends ItemView {
 		setIcon(settings, 'settings');
 	}
 
-	private renderStats(root: HTMLElement, stats: [Number, Number]): void {
+	private renderStats(
+		root: HTMLElement,
+		stats: ReturnType<FeedView['getStats']>,
+	): void {
 		const statsDiv = root.createDiv({ cls: 'orbit-stats' });
 
 		const items = [
-			['TODAY', String(stats[0]), 'Activities explored'],
-			['THIS WEEK', String(stats[1]) + 'h', 'Time invested'],
+			['TODAY', `0`, 'Time invested'],
+			['THIS WEEK', `0`, 'Time invested'],
 		];
 
 		for (const [label, value, description] of items) {
@@ -160,98 +167,101 @@ export class FeedView extends ItemView {
 		});
 
 		for (const activity of activities) {
-			this.activityCard.renderActivityCard(list, activity);
+			this.activityCard.renderActivityCard(
+				list,
+				activity,
+				this.dailyLogService,
+			);
 		}
 	}
 
 	// ─── Data Loading ───────────────────────────────────
 
-	private getActivities(): OrbitActivity[] {
-		const files = this.app.vault.getMarkdownFiles();
+	private async getActivities(): Promise<OrbitActivity[]> {
+		const activitiesFolderPath = 'Orbit/Activities';
+
+		const activitiesFiles = this.app.vault
+			.getMarkdownFiles()
+			.filter((file) => file.parent?.path === activitiesFolderPath);
+
+		const logFile = await this.dailyLogService.getLog();
 		const activities: OrbitActivity[] = [];
 
-		for (const file of files) {
+		for (const file of activitiesFiles) {
 			const frontmatter =
 				this.app.metadataCache.getFileCache(file)?.frontmatter;
 
 			if (!frontmatter) continue;
 
-			const rawTags = frontmatter.tags;
-			const tags: string[] = Array.isArray(rawTags)
-				? rawTags.map(String)
-				: typeof rawTags === 'string'
-					? [rawTags]
-					: [];
-
-			if (!tags.some((tag) => tag.replace(/^#/, '') === 'orbit')) {
-				continue;
-			}
-
-			const lastDone = this.parseDate(frontmatter.last_done);
-
-			const daysAgo = lastDone
-				? (() => {
-						const today = new Date();
-						const done = new Date(lastDone);
-
-						const todayUTC = Date.UTC(
-							today.getFullYear(),
-							today.getMonth(),
-							today.getDate(),
-						);
-
-						const doneUTC = Date.UTC(
-							done.getFullYear(),
-							done.getMonth(),
-							done.getDate(),
-						);
-
-						return Math.round((todayUTC - doneUTC) / 86_400_000);
-					})()
-				: null;
-
-			const base = {
+			
+			activities.push({
+				id: String(frontmatter.orbit_id),
 				file,
-				name: frontmatter.title ?? file.basename,
-				tags: tags.filter((tag) => tag.replace(/^#/, '') !== 'orbit'),
-				lastDone,
-				daysAgo,
-				status: frontmatter.status ?? 'active',
-			};
+				name: String(frontmatter.title ?? file.basename),
+				tags: Array.isArray(frontmatter.tags)
+					? frontmatter.tags.map(String)
+					: [],
+				status: String(frontmatter.status ?? 'active'),
 
-			if (frontmatter.tracking_type === 'sessions') {
-				activities.push({
-					...base,
-					trackingType: 'sessions',
-					weeklySessions: frontmatter.weekly_sessions ?? 0,
-					weeklySessionsGoal: frontmatter.weekly_sessions_goal ?? 0,
-				});
-			} else {
-				activities.push({
-					...base,
-					trackingType: 'time',
-					weeklyTime: frontmatter.weekly_time ?? 0,
-					weeklyTimeGoal: frontmatter.weekly_time_goal ?? 0,
-				});
-			}
+				trackingType:
+					frontmatter.tracking?.type === 'sessions'
+						? 'session'
+						: 'time',
+
+				weeklyTimeGoal:
+					frontmatter.goals?.weekly_time != null
+						? Number(frontmatter.goals.weekly_time)
+						: null,
+
+				weeklySessionsGoal:
+					frontmatter.goals?.weekly_sessions != null
+						? Number(frontmatter.goals.weekly_sessions)
+						: null,
+
+				sessionLength:
+					frontmatter.defaults?.session_length != null
+						? Number(frontmatter.defaults.session_length)
+						: null,
+
+				// Derived from daily logs; calculate these separately.
+				lastDone: null,
+				daysAgo: null,
+				dailyTime: 0,
+				weeklyTime: 0,
+				weeklySessions: 0,
+			});
 		}
 
 		return activities;
 	}
 
-	private getStats(activities: OrbitActivity[]): [Number, Number] {
-		const activitiesExplored = activities.filter(
-			(activity) => activity.daysAgo === 0,
-		).length;
+	private getStats(activities: OrbitActivity[]) {
+		// const activitiesExploredDaily = activities.filter((activity) =>
+		// 	this.isToday(activity.lastDone),
+		// ).length;
 
-		const timeInvested = activities.reduce(
-			(total, activity) => total + (activity.weeklyTime ?? 0),
-			0,
-		);
+		// const activitiesExploredWeekly = activities.filter((activity) =>
+		// 	this.isThisWeek(activity.lastDone),
+		// ).length;
 
-		const timeInvestedHours = timeInvested / 60;
+		// const timeInvestedDaily = activities.reduce(
+		// 	(total, activity) => total + (activity.dailyTime ?? 0),
+		// 	0,
+		// );
 
-		return [activitiesExplored, timeInvestedHours];
+		// const timeInvestedWeekly = activities.reduce(
+		// 	(total, activity) => total + (activity.weeklyTime ?? 0),
+		// 	0,
+		// );
+
+		// return {
+		// 	activitiesExploredDaily,
+		// 	activitiesExploredWeekly,
+		// 	timeInvestedDailyHours: timeInvestedDaily / 60,
+		// 	timeInvestedWeeklyHours: timeInvestedWeekly / 60,
+		// };
+		// return {0, 0, timeInvestedDailyHours: 0, timeInvestedWeeklyHours: 0};
+		return;
 	}
 
 	private getTiers(activities: OrbitActivity[]): OrbitTier[] {
@@ -298,32 +308,5 @@ export class FeedView extends ItemView {
 				activities: onHold,
 			},
 		];
-	}
-
-	private parseDate(value: unknown): Date | null {
-		if (value instanceof Date) {
-			return Number.isNaN(value.getTime()) ? null : value;
-		}
-
-		if (typeof value === 'string') {
-			const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-			if (match) {
-				const [, year, month, day] = match;
-
-				return new Date(Number(year), Number(month) - 1, Number(day));
-			}
-
-			const date = new Date(value);
-			return Number.isNaN(date.getTime()) ? null : date;
-		}
-
-		if (typeof value === 'number') {
-			// Handle numeric timestamps.
-			const date = new Date(value);
-			return Number.isNaN(date.getTime()) ? null : date;
-		}
-
-		return null;
 	}
 }
