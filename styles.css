@@ -1,135 +1,247 @@
-
 .orbit {
-  padding: 16px;
+	padding: 16px;
 }
 
 .orbit-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--background-modifier-border);
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding-bottom: 24px;
+	border-bottom: 1px solid var(--text-muted);
 }
 
 .orbit-header h2,
 .orbit-header p,
 .orbit-stats p,
 .orbit-stats h1 {
-  margin: 0;
+	margin: 0;
 }
 
 .orbit-header h2 {
-  font-size: 24px;
+	font-size: 24px;
 }
 
 .orbit-header p {
-  color: var(--text-muted);
+	color: var(--text-muted);
 }
 
 .orbit-settings {
-  margin-left: auto;
+	margin-left: auto;
 }
 
 .orbit-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 28px 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	padding: 24px 0;
+	border-bottom: 1px solid var(--text-muted);
 }
 
 .orbit-stats p {
-  color: var(--text-muted);
-  margin-bottom: 8px;
+	color: var(--text-muted);
+	margin-bottom: 8px;
 }
 
 .orbit-stats h1 {
-  font-size: 32px;
+	font-size: 32px;
 }
-
-.orbit-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .orbit-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 14px;
-  cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
+	padding: 0;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 14px;
+	cursor: pointer;
+	transition: border-color 150ms ease;
 }
 
 .orbit-card:hover {
-  background: var(--background-modifier-hover);
+	background: var(--background-modifier-hover);
+}
+
+.orbit-card.is-expanded {
+	border-color: var(--interactive-accent);
+}
+
+.orbit-card-row {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	width: 100%;
+	box-sizing: border-box;
+}
+.orbit-expanded {
+	padding: 0 16px 16px;
+	cursor: default;
+}
+
+.orbit-time-header {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-bottom: 8px;
+}
+
+.orbit-time-value {
+	font-size: 14px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+.orbit-time-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.orbit-time-slider {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	cursor: pointer;
+	accent-color: var(--interactive-accent);
+}
+
+.orbit-confirm-button {
+	flex-shrink: 0;
+	padding: 6px 16px;
+	border-radius: 8px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.orbit-time-header p {
+	margin: 0;
+	font-size: 14px;
+	color: var(--text-muted);
+}
+
+.orbit-time-value {
+	font-size: 14px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+
+.orbit-list {
+	display: flex;
+	flex-direction: column;
+}
+
+.orbit-card {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 16px;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 14px;
+	cursor: pointer;
+}
+
+.orbit-card:hover {
+	background: var(--background-modifier-hover);
 }
 
 .orbit-info {
-  flex: 1;
-  min-width: 0;
-  font-size: 18px;
+	flex: 1;
+	min-width: 0;
+	font-size: 18px;
 }
 
 .orbit-info p {
-  color: var(--text-muted);
-  font-size: 14px;
-  margin: 6px 0 0;
+	color: var(--text-muted);
+	font-size: 14px;
+	margin: 6px 0 0;
 }
 
 .orbit-time {
-  color: var(--text-muted);
-  font-size: 13px;
+	color: var(--text-muted);
+	font-size: 13px;
 }
 
 .orbit-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text-muted);
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--text-muted);
 }
 
 .orbit-footnote {
-  color: var(--text-muted);
-  font-size: 12px;
-  margin-top: 20px;
+	color: var(--text-muted);
+	font-size: 12px;
+	margin-top: 20px;
 }
 
-
 .orbit-tier {
-  margin-bottom: 28px;
+	margin-bottom: 28px;
+	margin-top: 28px;
 }
 
 .orbit-tier-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 12px;
 }
 
 .orbit-tier-header h3 {
-  margin: 0;
+	margin: 0;
 }
 
 .orbit-tier-header p {
-  margin: 3px 0 0;
-  color: var(--text-muted);
-  font-size: 13px;
+	margin: 3px 0 0;
+	color: var(--text-muted);
+	font-size: 13px;
 }
 
 .orbit-tier-header svg {
-  color: var(--text-muted);
+	color: var(--text-muted);
 }
 
 .orbit-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 }
 
 .orbit-divider {
-  border: none;
-  border-top: 1px solid var(--background-modifier-border);
-  margin: 24px 0;
+	border-bottom: 1px solid var(--text-muted);
+	border-radius: 14px;
+
+	margin: 24px 0;
+}
+
+
+.orbit-progress {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+}
+
+.orbit-progress-bar {
+	flex: 1;
+	height: 5px;
+	background-color: var(--background-modifier-border);
+	border-radius: 999px;
+	overflow: hidden;
+}
+
+.orbit-progress-fill {
+	height: 100%;
+	background-color: var(--interactive-accent);
+	border-radius: 999px;
+	transition: width 200ms ease;
+}
+
+.orbit-progress-percent {
+	min-width: 36px;
+	text-align: right;
+	font-size: 0.8em;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
 }

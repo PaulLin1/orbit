@@ -1,15 +1,9 @@
 import { ItemView, WorkspaceLeaf, TFile, setIcon } from 'obsidian';
+import { ActivityCard, OrbitActivity} from '../components/card'
 
 // ─── Types ──────────────────────────────────────────────
 
-type OrbitActivity = {
-	file: TFile;
-	name: string;
-	tags: string[];
-	lastDone: Date | null;
-	status: string;
-	daysAgo: number | null;
-};
+
 
 type OrbitTier = {
 	name: string;
@@ -48,8 +42,12 @@ const TIER_CONFIG = {
 // ─── Feed View ──────────────────────────────────────────
 
 export class FeedView extends ItemView {
+		private activityCard: ActivityCard;
+
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
+				this.activityCard = new ActivityCard(this.app);
+
 	}
 
 	getViewType(): string {
@@ -59,6 +57,7 @@ export class FeedView extends ItemView {
 	getDisplayText(): string {
 		return 'Orbit';
 	}
+
 
 	// ─── Lifecycle ──────────────────────────────────────
 
@@ -105,13 +104,6 @@ export class FeedView extends ItemView {
 		setIcon(settings, 'settings');
 	}
 
-	private getStats(activities: OrbitActivity[]): [Number, Number] {
-		const activitiesExplored = activities.filter(
-			(activity) => activity.daysAgo === 0,
-		).length;
-
-		return [activitiesExplored, 0];
-	}
 	private renderStats(root: HTMLElement, stats: [Number, Number]): void {
 		const statsDiv = root.createDiv({ cls: 'orbit-stats' });
 
@@ -172,53 +164,9 @@ export class FeedView extends ItemView {
 		});
 
 		for (const activity of activities) {
-			this.renderActivityCard(list, activity);
+			this.activityCard.renderActivityCard(list, activity);
+
 		}
-	}
-
-	private renderActivityCard(
-		list: HTMLElement,
-		activity: OrbitActivity,
-	): void {
-		const card = list.createDiv({
-			cls: 'orbit-card',
-		});
-
-		const icon = card.createDiv({
-			cls: 'orbit-card-icon',
-		});
-		setIcon(icon, 'file-text');
-
-		const info = card.createDiv({
-			cls: 'orbit-info',
-		});
-
-		info.createEl('div', {
-			text: activity.name,
-		});
-
-		info.createEl('p', {
-			text: activity.tags.join(' · '),
-		});
-
-		card.createEl('span', {
-			text: this.formatLastDone(activity.daysAgo),
-			cls: 'orbit-time',
-		});
-
-		card.createDiv({ cls: 'orbit-dot' });
-
-		card.addEventListener('click', () => {
-			void this.app.workspace.getLeaf(false).openFile(activity.file);
-		});
-	}
-
-	private formatLastDone(daysAgo: number | null): string {
-		if (daysAgo === null) return 'Never';
-		if (daysAgo === 0) return 'Today';
-		if (daysAgo === 1) return 'Yesterday';
-
-		return `${daysAgo} days ago`;
 	}
 
 	// ─── Data Loading ───────────────────────────────────
@@ -274,38 +222,27 @@ export class FeedView extends ItemView {
 				lastDone,
 				daysAgo,
 				status: frontmatter.status ?? 'active',
+				weeklyTime: frontmatter.weekly_time,
+				weeklyGoal: frontmatter.weekly_goal,
 			});
 		}
 
 		return activities;
 	}
 
-	private parseDate(value: unknown): Date | null {
-		if (value instanceof Date) {
-			return Number.isNaN(value.getTime()) ? null : value;
-		}
+	private getStats(activities: OrbitActivity[]): [Number, Number] {
+		const activitiesExplored = activities.filter(
+			(activity) => activity.daysAgo === 0,
+		).length;
 
-		if (typeof value === 'string') {
-			// Parse YYYY-MM-DD as a local date, not UTC.
-			const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+		const timeInvested = activities.reduce(
+			(total, activity) => total + (activity.weeklyTime ?? 0),
+			0,
+		);
 
-			if (match) {
-				const [, year, month, day] = match;
+		const timeInvestedHours = timeInvested / 60;
 
-				return new Date(Number(year), Number(month) - 1, Number(day));
-			}
-
-			const date = new Date(value);
-			return Number.isNaN(date.getTime()) ? null : date;
-		}
-
-		if (typeof value === 'number') {
-			// Handle numeric timestamps.
-			const date = new Date(value);
-			return Number.isNaN(date.getTime()) ? null : date;
-		}
-
-		return null;
+		return [activitiesExplored, timeInvestedHours];
 	}
 
 	private getTiers(activities: OrbitActivity[]): OrbitTier[] {
@@ -318,18 +255,18 @@ export class FeedView extends ItemView {
 		);
 
 		const outer = active.filter(
-			(activity) => activity.daysAgo === null || activity.daysAgo >= 21,
+			(activity) => activity.daysAgo === null || activity.daysAgo >= 3,
 		);
 
 		const mid = active.filter(
 			(activity) =>
 				activity.daysAgo !== null &&
-				activity.daysAgo >= 7 &&
-				activity.daysAgo < 21,
+				activity.daysAgo >= 1 &&
+				activity.daysAgo < 3,
 		);
 
 		const inner = active.filter(
-			(activity) => activity.daysAgo !== null && activity.daysAgo < 7,
+			(activity) => activity.daysAgo !== null && activity.daysAgo < 1,
 		);
 
 		outer.sort((a, b) => (b.daysAgo ?? Infinity) - (a.daysAgo ?? Infinity));
@@ -352,5 +289,32 @@ export class FeedView extends ItemView {
 				activities: onHold,
 			},
 		];
+	}
+
+	private parseDate(value: unknown): Date | null {
+		if (value instanceof Date) {
+			return Number.isNaN(value.getTime()) ? null : value;
+		}
+
+		if (typeof value === 'string') {
+			const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+			if (match) {
+				const [, year, month, day] = match;
+
+				return new Date(Number(year), Number(month) - 1, Number(day));
+			}
+
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? null : date;
+		}
+
+		if (typeof value === 'number') {
+			// Handle numeric timestamps.
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? null : date;
+		}
+
+		return null;
 	}
 }
