@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, debounce, setIcon } from 'obsidian';
 import { ActivityCard, OrbitActivity } from '../components/card';
 import { DailyLogService } from '../dailyLogService';
 import { parseDate } from '../dateHelpers';
@@ -62,7 +62,17 @@ export class FeedView extends ItemView {
 	// ─── Lifecycle ──────────────────────────────────────
 
 	async onOpen(): Promise<void> {
-		this.renderAll();
+		// Re-render once Obsidian has re-parsed changed Orbit files, so stats
+		// read fresh frontmatter instead of a stale/empty cache.
+		const requestRender = debounce(() => void this.renderAll(), 100, true);
+
+		this.registerEvent(
+			this.app.metadataCache.on('changed', (file) => {
+				if (file.path.startsWith('Orbit/')) requestRender();
+			}),
+		);
+
+		await this.renderAll();
 	}
 
 	async onClose(): Promise<void> {}
@@ -79,10 +89,9 @@ export class FeedView extends ItemView {
 
 		const activities = await this.getActivities();
 
-		this.renderStats(root);
-
+await this.renderStats(root);
 		const tiers = this.getTiers(activities);
-		this.renderTiers(root, tiers);
+		await this.renderTiers(root, tiers);
 	}
 
 	private renderHeader(root: HTMLElement): void {
@@ -148,24 +157,30 @@ export class FeedView extends ItemView {
 		}
 	}
 
-	private renderTiers(root: HTMLElement, tiers: OrbitTier[]): void {
-		tiers.forEach((tier, index) => {
-			if (index > 0) {
-				root.createEl('hr', { cls: 'orbit-divider' });
-			}
+private async renderTiers(
+    root: HTMLElement,
+    tiers: OrbitTier[],
+): Promise<void> {
+    for (const [index, tier] of tiers.entries()) {
+        if (index > 0) {
+            root.createEl('hr', { cls: 'orbit-divider' });
+        }
 
-			this.renderTier(root, tier);
-		});
-	}
+        await this.renderTier(root, tier);
+    }
+}
 
-	private renderTier(root: HTMLElement, tier: OrbitTier): void {
-		const section = root.createDiv({
-			cls: 'orbit-tier',
-		});
+private async renderTier(
+    root: HTMLElement,
+    tier: OrbitTier,
+): Promise<void> {
+    const section = root.createDiv({
+        cls: 'orbit-tier',
+    });
 
-		this.renderTierHeader(section, tier);
-		this.renderActivityList(section, tier.activities);
-	}
+    this.renderTierHeader(section, tier);
+    await this.renderActivityList(section, tier.activities);
+}
 
 	private renderTierHeader(section: HTMLElement, tier: OrbitTier): void {
 		const heading = section.createDiv({
@@ -182,22 +197,22 @@ export class FeedView extends ItemView {
 		labels.createEl('p', { text: tier.description });
 	}
 
-	private renderActivityList(
-		section: HTMLElement,
-		activities: OrbitActivity[],
-	): void {
-		const list = section.createDiv({
-			cls: 'orbit-list',
-		});
+private async renderActivityList(
+    section: HTMLElement,
+    activities: OrbitActivity[],
+): Promise<void> {
+    const list = section.createDiv({
+        cls: 'orbit-list',
+    });
 
-		for (const activity of activities) {
-			await this.activityCard.renderActivityCard(
-				list,
-				activity,
-				this.dailyLogService,
-			);
-		}
-	}
+    for (const activity of activities) {
+        await this.activityCard.renderActivityCard(
+            list,
+            activity,
+            this.dailyLogService,
+        );
+    }
+}
 
 	// ─── Data Loading ───────────────────────────────────
 
@@ -245,7 +260,7 @@ export class FeedView extends ItemView {
 						? Number(frontmatter.defaults.session_length)
 						: null,
 
-				lastDone: frontmatter.last_done,
+				lastDone: frontmatter.last_done ? String(frontmatter.last_done) : null,
 			});
 		}
 
@@ -276,7 +291,6 @@ export class FeedView extends ItemView {
 			const days = daysAgo(activity);
 			return days === null || days >= 3;
 		});
-
 
 		const mid = active.filter((activity) => {
 			const days = daysAgo(activity);

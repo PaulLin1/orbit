@@ -16,7 +16,7 @@ export type OrbitActivity = {
 	weeklySessionsGoal: number | null;
 	sessionLength: number | null;
 
-	lastDone: number | null;
+	lastDone: string | null;
 };
 
 export class ActivityCard {
@@ -127,7 +127,7 @@ export class ActivityCard {
 				event.stopPropagation();
 
 				try {
-					dailyLogService.recordSession(
+					await dailyLogService.recordSession(
 						activity.id,
 						activity.sessionLength!,
 					);
@@ -175,7 +175,7 @@ export class ActivityCard {
 				const minutes = Number(slider.value);
 
 				try {
-					dailyLogService.recordSession(activity.id, minutes);
+					await dailyLogService.recordSession(activity.id, minutes);
 				} catch (error) {
 					console.error('Failed to update weekly time:', error);
 				}
