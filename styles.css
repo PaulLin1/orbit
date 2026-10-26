@@ -77,6 +77,10 @@
 	cursor: default;
 }
 
+.orbit-card:not(.is-expanded) .orbit-expanded {
+	display: none;
+}
+
 .orbit-time-header {
 	display: flex;
 	justify-content: center;

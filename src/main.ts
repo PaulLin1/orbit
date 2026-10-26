@@ -1,39 +1,35 @@
 import { Plugin } from 'obsidian';
-
-import { FeedView, VIEW_TYPE_FEED } from './views/orbitView';
+import { VIEW_TYPE_ORBIT } from './constants';
+import { OrbitView } from './ui/orbitView';
 
 export default class Orbit extends Plugin {
 	async onload() {
-		this.registerView(VIEW_TYPE_FEED, (leaf) => new FeedView(leaf));
+		this.registerView(VIEW_TYPE_ORBIT, (leaf) => new OrbitView(leaf));
 
 		this.addRibbonIcon('orbit', 'Open Orbit', () => {
-			this.activateFeed();
+			void this.activateView();
 		});
 
 		this.addCommand({
 			id: 'open-orbit',
-			name: 'Open Orbit',
-			callback: () => this.activateFeed(),
+			name: 'Open view',
+			callback: () => void this.activateView(),
 		});
 	}
 
-	async activateFeed() {
+	async activateView() {
 		const { workspace } = this.app;
 
-		let leaf = workspace.getLeavesOfType(VIEW_TYPE_FEED)[0];
+		let leaf = workspace.getLeavesOfType(VIEW_TYPE_ORBIT)[0];
 
 		if (!leaf) {
 			leaf = workspace.getRightLeaf(false)!;
 			await leaf.setViewState({
-				type: VIEW_TYPE_FEED,
+				type: VIEW_TYPE_ORBIT,
 				active: true,
 			});
 		}
 
-		workspace.revealLeaf(leaf);
-	}
-
-	onunload() {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_FEED);
+		await workspace.revealLeaf(leaf);
 	}
 }
