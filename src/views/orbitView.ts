@@ -79,8 +79,7 @@ export class FeedView extends ItemView {
 
 		const activities = await this.getActivities();
 
-		const stats = this.getStats(activities);
-		this.renderStats(root, stats);
+		this.renderStats(root);
 
 		const tiers = this.getTiers(activities);
 		this.renderTiers(root, tiers);
@@ -104,23 +103,49 @@ export class FeedView extends ItemView {
 		setIcon(settings, 'settings');
 	}
 
-	private renderStats(
-		root: HTMLElement,
-		stats: ReturnType<FeedView['getStats']>,
-	): void {
+	private async renderStats(root: HTMLElement): Promise<void> {
 		const statsDiv = root.createDiv({ cls: 'orbit-stats' });
 
+const dailyStats = await this.dailyLogService.getDailyStats();
+const weeklyStats = await this.dailyLogService.getWeeklyStats();
+
+
 		const items = [
-			['TODAY', `0`, 'Time invested'],
-			['THIS WEEK', `0`, 'Time invested'],
+			{
+				label: 'TODAY',
+				time: `${(dailyStats.totalMinutes / 60).toFixed(1)}h`,
+				sessions: `${dailyStats.uniqueActivities}`,
+				timeDescription: 'Time invested',
+				sessionsDescription: 'Activities completed',
+			},
+			{
+				label: 'THIS WEEK',
+				time: `${(weeklyStats.totalMinutes / 60).toFixed(1)}h`,
+				sessions: `${weeklyStats.uniqueActivities}`,
+				timeDescription: 'Time invested',
+				sessionsDescription: 'Activities completed',
+			},
 		];
 
-		for (const [label, value, description] of items) {
-			const stat = statsDiv.createDiv();
+		for (const item of items) {
+			const stat = statsDiv.createDiv({ cls: 'orbit-stat' });
 
-			stat.createEl('p', { text: label });
-			stat.createEl('h1', { text: value });
-			stat.createEl('p', { text: description });
+			let showTime = true;
+
+			const label = stat.createEl('p', { text: item.label });
+			const value = stat.createEl('h1', { text: item.time });
+			const description = stat.createEl('p', {
+				text: item.timeDescription,
+			});
+
+			stat.addEventListener('click', () => {
+				showTime = !showTime;
+
+				value.setText(showTime ? item.time : item.sessions);
+				description.setText(
+					showTime ? item.timeDescription : item.sessionsDescription,
+				);
+			});
 		}
 	}
 
@@ -193,7 +218,6 @@ export class FeedView extends ItemView {
 
 			if (!frontmatter) continue;
 
-			
 			activities.push({
 				id: String(frontmatter.orbit_id),
 				file,
@@ -233,35 +257,6 @@ export class FeedView extends ItemView {
 		}
 
 		return activities;
-	}
-
-	private getStats(activities: OrbitActivity[]) {
-		// const activitiesExploredDaily = activities.filter((activity) =>
-		// 	this.isToday(activity.lastDone),
-		// ).length;
-
-		// const activitiesExploredWeekly = activities.filter((activity) =>
-		// 	this.isThisWeek(activity.lastDone),
-		// ).length;
-
-		// const timeInvestedDaily = activities.reduce(
-		// 	(total, activity) => total + (activity.dailyTime ?? 0),
-		// 	0,
-		// );
-
-		// const timeInvestedWeekly = activities.reduce(
-		// 	(total, activity) => total + (activity.weeklyTime ?? 0),
-		// 	0,
-		// );
-
-		// return {
-		// 	activitiesExploredDaily,
-		// 	activitiesExploredWeekly,
-		// 	timeInvestedDailyHours: timeInvestedDaily / 60,
-		// 	timeInvestedWeeklyHours: timeInvestedWeekly / 60,
-		// };
-		// return {0, 0, timeInvestedDailyHours: 0, timeInvestedWeeklyHours: 0};
-		return;
 	}
 
 	private getTiers(activities: OrbitActivity[]): OrbitTier[] {

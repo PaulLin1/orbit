@@ -1,12 +1,14 @@
-
 import { App, TFile } from 'obsidian';
 
 export class DailyLogService {
-	constructor(private app: App) {}
+	private todayDate: string;
 
-    async getLog(): Promise<TFile> {
+	constructor(private app: App) {
+		this.todayDate = window.moment().format('YYYY-MM-DD');
+	}
+
+	async getLog(date: string): Promise<TFile> {
 		const folderPath = 'Orbit/Daily Logs';
-		const date = window.moment().format('YYYY-MM-DD');
 		const filePath = `${folderPath}/${date}.md`;
 
 		// Ensure folders exist
@@ -39,15 +41,76 @@ export class DailyLogService {
 			);
 		}
 
-        return logFile;
-    }
+		return logFile;
+	}
 
-	async recordSession(
-		activityId: string,
-		minutes: number,
-	): Promise<void> {
-        const logFile = await this.getLog();
-		const date = window.moment().format('YYYY-MM-DD');
+	async getDailyStats(): Promise<{
+		uniqueActivities: number;
+		totalMinutes: number;
+	}> {
+		const logFile = await this.getLog(this.todayDate);
+		const frontmatter =
+			this.app.metadataCache.getFileCache(logFile)?.frontmatter;
+
+		const sessions = Array.isArray(frontmatter?.sessions)
+			? frontmatter.sessions
+			: [];
+
+		return {
+			uniqueActivities: new Set(
+				sessions.map(
+					(session: { activity_id: string }) => session.activity_id,
+				),
+			).size,
+			totalMinutes: sessions.reduce(
+				(total: number, session: { minutes: number }) =>
+					total + (Number(session.minutes) || 0),
+				0,
+			),
+		};
+	}
+
+	async getWeeklyStats(): Promise<{
+		uniqueActivities: number;
+		totalMinutes: number;
+	}> {
+		const today = window.moment();
+		const weekStart = today.clone().startOf('week'); // Sunday
+		const activityIds = new Set<string>();
+		let totalMinutes = 0;
+
+		for (
+			let day = weekStart.clone();
+			day.isSameOrBefore(today, 'day');
+			day.add(1, 'day')
+		) {
+			const date = day.format('YYYY-MM-DD');
+			const logFile = await this.getLog(date);
+
+			const frontmatter =
+				this.app.metadataCache.getFileCache(logFile)?.frontmatter;
+
+			const sessions = Array.isArray(frontmatter?.sessions)
+				? frontmatter.sessions
+				: [];
+
+			for (const session of sessions) {
+				if (typeof session.activity_id === 'string') {
+					activityIds.add(session.activity_id);
+				}
+
+				totalMinutes += Number(session.minutes) || 0;
+			}
+		}
+
+		return {
+			uniqueActivities: activityIds.size,
+			totalMinutes,
+		};
+	}
+
+	async recordSession(activityId: string, minutes: number): Promise<void> {
+		const logFile = await this.getLog(this.todayDate);
 
 		// Append the session
 		await this.app.fileManager.processFrontMatter(
@@ -64,7 +127,7 @@ export class DailyLogService {
 				});
 
 				frontmatter.type = 'orbit-daily-log';
-				frontmatter.date = date;
+				frontmatter.date = this.todayDate;
 				frontmatter.sessions = sessions;
 			},
 		);

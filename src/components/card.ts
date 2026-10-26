@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, Notice } from 'obsidian';
 import { DailyLogService } from '../dailyLogService';
 
 export type TrackingType = 'time' | 'session';
@@ -15,7 +15,7 @@ export type OrbitActivity = {
 	lastDone: Date | null;
 	daysAgo: number | null;
 	dailyTime: number;
-    // dailySessions is just count in daily log
+	// dailySessions is just count in daily log
 	weeklyTime: number;
 	weeklySessions: number;
 
@@ -29,12 +29,16 @@ export type OrbitActivity = {
 export class ActivityCard {
 	constructor(private app: App) {}
 
-	renderActivityCard(list: HTMLElement, activity: OrbitActivity, dailyLogService: DailyLogService): void {
+	renderActivityCard(
+		list: HTMLElement,
+		activity: OrbitActivity,
+		dailyLogService: DailyLogService,
+	): void {
 		const card = list.createDiv({
 			cls: 'orbit-card',
 		});
 
-        // Header
+		// Header
 
 		const row = card.createDiv({
 			cls: 'orbit-card-row',
@@ -52,8 +56,8 @@ export class ActivityCard {
 			cls: 'orbit-time',
 		});
 
-        // Progress bar
-    
+		// Progress bar
+
 		// const progress = card.createDiv({
 		// 	cls: 'orbit-card-row orbit-progress',
 		// });
@@ -96,118 +100,91 @@ export class ActivityCard {
 		// 	text: `${Math.round(percent)}%`,
 		// });
 
-        // Adding time
+		// Adding time
 
-		// const expanded = card.createDiv({
-		// 	cls: 'orbit-expanded',
-		// });
-		// expanded.style.display = 'none';
+		const expanded = card.createDiv({
+			cls: 'orbit-expanded',
+		});
+		expanded.style.display = 'none';
 
-		// const controls = expanded.createDiv({
-		// 	cls: 'orbit-time-controls',
-		// });
+		card.addEventListener('click', (event) => {
+			if (expanded.contains(event.target as Node)) return;
 
-		// if (activity.sessionLength != null) {
-		// 	const sessionButton = controls.createEl('button', {
-		// 		text: 'Add Session',
-		// 		cls: 'orbit-confirm-button',
-		// 	});
+			const isExpanded = expanded.style.display !== 'none';
 
-		// 	sessionButton.addEventListener('click', async (event) => {
-		// 		event.stopPropagation();
+			expanded.style.display = isExpanded ? 'none' : 'block';
+			card.classList.toggle('is-expanded', !isExpanded);
+		});
 
-		// 		try {
-		// 			await this.app.fileManager.processFrontMatter(
-		// 				activity.file,
-		// 				(frontmatter) => {
-		// 					frontmatter.weekly_time =
-		// 						(Number(frontmatter.weekly_time) || 0) +
-		// 						frontmatter.session_length;
+		const controls = expanded.createDiv({
+			cls: 'orbit-time-controls',
+		});
 
-		// 					frontmatter.daily_time =
-		// 						(Number(frontmatter.daily_time) || 0) +
-		// 						frontmatter.session_length;
+		if (activity.sessionLength != null) {
+			// Session based adding
 
-		// 					frontmatter.weekly_sessions =
-		// 						(Number(frontmatter.weekly_sessions) || 0) + 1;
+			const sessionButton = controls.createEl('button', {
+				text: 'Add Session',
+				cls: 'orbit-confirm-button',
+			});
 
-		// 					frontmatter.last_done = window
-		// 						.moment()
-		// 						.format('YYYY-MM-DD');
-		// 				},
-		// 			);
-		// 		} catch (error) {
-		// 			console.error('Failed to add session:', error);
-		// 		}
-		// 	});
-		// } else {
-		// 	const timeValue = controls.createDiv({
-		// 		cls: 'orbit-time-value',
-		// 		text: '15 min',
-		// 	});
+			sessionButton.addEventListener('click', async (event) => {
+				event.stopPropagation();
 
-		// 	const slider = controls.createEl('input', {
-		// 		type: 'range',
-		// 		cls: 'orbit-time-slider',
-		// 		attr: {
-		// 			min: '15',
-		// 			max: '120',
-		// 			step: '15',
-		// 			value: '15',
-		// 		},
-		// 	});
+				try {
+					dailyLogService.recordSession(
+						activity.id,
+						activity.sessionLength!,
+					);
+				} catch (error) {
+					console.error('Failed to add session:', error);
+				}
+			});
+		} else {
+			// Time based adding
 
-		// 	slider.addEventListener('input', () => {
-		// 		const minutes = Number(slider.value);
+			const timeValue = controls.createDiv({
+				cls: 'orbit-time-value',
+				text: '15 min',
+			});
 
-		// 		timeValue.setText(
-		// 			minutes >= 60
-		// 				? `${minutes / 60} hr${minutes > 60 ? 's' : ''}`
-		// 				: `${minutes} min`,
-		// 		);
-		// 	});
+			const slider = controls.createEl('input', {
+				type: 'range',
+				cls: 'orbit-time-slider',
+				attr: {
+					min: '15',
+					max: '120',
+					step: '15',
+					value: '15',
+				},
+			});
 
-		// 	const confirmButton = controls.createEl('button', {
-		// 		text: 'Add',
-		// 		cls: 'orbit-confirm-button',
-		// 	});
+			slider.addEventListener('input', () => {
+				const minutes = Number(slider.value);
 
-		// 	confirmButton.addEventListener('click', async (event) => {
-		// 		event.stopPropagation();
+				timeValue.setText(
+					minutes >= 60
+						? `${minutes / 60} hr${minutes > 60 ? 's' : ''}`
+						: `${minutes} min`,
+				);
+			});
 
-		// 		const minutes = Number(slider.value);
+			const confirmButton = controls.createEl('button', {
+				text: 'Add',
+				cls: 'orbit-confirm-button',
+			});
 
-		// 		try {
-		// 			await this.app.fileManager.processFrontMatter(
-		// 				activity.file,
-		// 				(frontmatter) => {
-		// 					frontmatter.weekly_time =
-		// 						(Number(frontmatter.weekly_time) || 0) +
-		// 						minutes;
+			confirmButton.addEventListener('click', async (event) => {
+				event.stopPropagation();
 
-		// 					frontmatter.daily_time =
-		// 						(Number(frontmatter.daily_time) || 0) + minutes;
+				const minutes = Number(slider.value);
 
-		// 					frontmatter.last_done = window
-		// 						.moment()
-		// 						.format('YYYY-MM-DD');
-		// 				},
-		// 			);
-		// 		} catch (error) {
-		// 			console.error('Failed to update weekly time:', error);
-		// 		}
-		// 	});
-		// }
-
-		// card.addEventListener('click', () => {
-		// 	const isExpanded = expanded.style.display !== 'none';
-
-		// 	expanded.style.display = isExpanded ? 'none' : 'block';
-		// 	card.classList.toggle('is-expanded', !isExpanded);
-		// });
-
-		// expanded.addEventListener('click', (event) => {
-		// 	event.stopPropagation();
-		// });
+				try {
+					dailyLogService.recordSession(activity.id, minutes);
+				} catch (error) {
+					console.error('Failed to update weekly time:', error);
+				}
+			});
+		}
 	}
 }
