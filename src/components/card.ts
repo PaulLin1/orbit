@@ -4,6 +4,7 @@ import { DailyLogService } from '../dailyLogService';
 export type TrackingType = 'time' | 'session';
 
 import { formatLastDone } from '../dateHelpers';
+import { getActivityProgress } from '../progress';
 export type OrbitActivity = {
 	id: string;
 	file: TFile;
@@ -62,30 +63,10 @@ export class ActivityCard {
 			cls: 'orbit-progress-fill',
 		});
 
-		const stats = await dailyLogService.getActivityWeeklyStats(activity.id);
-
-		const actual =
-			activity.trackingType === 'time'
-				? stats.totalMinutes
-				: stats.sessions;
-
-		const goal =
-			activity.trackingType === 'time'
-				? activity.weeklyTimeGoal
-				: activity.weeklySessionsGoal;
-
-		const safeGoal = goal ?? 0;
-
-		const percent =
-			safeGoal > 0 ? Math.min(100, (actual / safeGoal) * 100) : 0;
-
-		const dayOfWeek = window.moment().day();
-		const weekProgress = (dayOfWeek + 1) / 7;
-		const expected = safeGoal * weekProgress;
-		const ratio = expected > 0 ? actual / expected : 0;
-
-		const colorClass =
-			ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
+		const { percent, level: colorClass } = await getActivityProgress(
+			activity,
+			dailyLogService,
+		);
 
 		progressFill.style.width = `${percent}%`;
 		progressFill.classList.add(colorClass);

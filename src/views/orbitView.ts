@@ -2,6 +2,11 @@ import { ItemView, WorkspaceLeaf, TFile, debounce, setIcon } from 'obsidian';
 import { ActivityCard, OrbitActivity } from '../components/card';
 import { DailyLogService } from '../dailyLogService';
 import { parseDate } from '../dateHelpers';
+import {
+	ActivityProgress,
+	ProgressLevel,
+	getActivityProgress,
+} from '../progress';
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -89,8 +94,8 @@ export class FeedView extends ItemView {
 
 		const activities = await this.getActivities();
 
-await this.renderStats(root);
-		const tiers = this.getTiers(activities);
+		await this.renderStats(root);
+		const tiers = await this.getTiers(activities);
 		await this.renderTiers(root, tiers);
 	}
 
@@ -157,30 +162,30 @@ await this.renderStats(root);
 		}
 	}
 
-private async renderTiers(
-    root: HTMLElement,
-    tiers: OrbitTier[],
-): Promise<void> {
-    for (const [index, tier] of tiers.entries()) {
-        if (index > 0) {
-            root.createEl('hr', { cls: 'orbit-divider' });
-        }
+	private async renderTiers(
+		root: HTMLElement,
+		tiers: OrbitTier[],
+	): Promise<void> {
+		for (const [index, tier] of tiers.entries()) {
+			if (index > 0) {
+				root.createEl('hr', { cls: 'orbit-divider' });
+			}
 
-        await this.renderTier(root, tier);
-    }
-}
+			await this.renderTier(root, tier);
+		}
+	}
 
-private async renderTier(
-    root: HTMLElement,
-    tier: OrbitTier,
-): Promise<void> {
-    const section = root.createDiv({
-        cls: 'orbit-tier',
-    });
+	private async renderTier(
+		root: HTMLElement,
+		tier: OrbitTier,
+	): Promise<void> {
+		const section = root.createDiv({
+			cls: 'orbit-tier',
+		});
 
-    this.renderTierHeader(section, tier);
-    await this.renderActivityList(section, tier.activities);
-}
+		this.renderTierHeader(section, tier);
+		await this.renderActivityList(section, tier.activities);
+	}
 
 	private renderTierHeader(section: HTMLElement, tier: OrbitTier): void {
 		const heading = section.createDiv({
@@ -197,22 +202,22 @@ private async renderTier(
 		labels.createEl('p', { text: tier.description });
 	}
 
-private async renderActivityList(
-    section: HTMLElement,
-    activities: OrbitActivity[],
-): Promise<void> {
-    const list = section.createDiv({
-        cls: 'orbit-list',
-    });
+	private async renderActivityList(
+		section: HTMLElement,
+		activities: OrbitActivity[],
+	): Promise<void> {
+		const list = section.createDiv({
+			cls: 'orbit-list',
+		});
 
-    for (const activity of activities) {
-        await this.activityCard.renderActivityCard(
-            list,
-            activity,
-            this.dailyLogService,
-        );
-    }
-}
+		for (const activity of activities) {
+			await this.activityCard.renderActivityCard(
+				list,
+				activity,
+				this.dailyLogService,
+			);
+		}
+	}
 
 	// ─── Data Loading ───────────────────────────────────
 
@@ -260,14 +265,16 @@ private async renderActivityList(
 						? Number(frontmatter.defaults.session_length)
 						: null,
 
-				lastDone: frontmatter.last_done ? String(frontmatter.last_done) : null,
+				lastDone: frontmatter.last_done
+					? String(frontmatter.last_done)
+					: null,
 			});
 		}
 
 		return activities;
 	}
 
-	private getTiers(activities: OrbitActivity[]): OrbitTier[] {
+	private async getTiers(activities: OrbitActivity[]): Promise<OrbitTier[]> {
 		const active = activities.filter(
 			(activity) => activity.status !== 'on-hold',
 		);
@@ -276,41 +283,28 @@ private async renderActivityList(
 			(activity) => activity.status === 'on-hold',
 		);
 
-		const daysAgo = (activity: OrbitActivity): number | null =>
-			activity.lastDone
-				? window
-						.moment()
-						.startOf('day')
-						.diff(
-							window.moment(activity.lastDone).startOf('day'),
-							'days',
-						)
-				: null;
+		const progress = new Map<OrbitActivity, ActivityProgress>();
 
-		const outer = active.filter((activity) => {
-			const days = daysAgo(activity);
-			return days === null || days >= 3;
-		});
+		for (const activity of active) {
+			progress.set(
+				activity,
+				await getActivityProgress(activity, this.dailyLogService),
+			);
+		}
 
-		const mid = active.filter((activity) => {
-			const days = daysAgo(activity);
-			return days !== null && days >= 1 && days < 3;
-		});
+		const byLevel = (level: ProgressLevel) =>
+			active
+				.filter((activity) => progress.get(activity)?.level === level)
+				.sort(
+					(a, b) =>
+						(progress.get(a)?.ratio ?? 0) -
+						(progress.get(b)?.ratio ?? 0),
+				);
 
-		const inner = active.filter((activity) => {
-			const days = daysAgo(activity);
-			return days !== null && days < 1;
-		});
+		const outer = byLevel('is-low');
+		const mid = byLevel('is-medium');
+		const inner = byLevel('is-high');
 
-		outer.sort((a, b) => {
-			const aDays = daysAgo(a);
-			const bDays = daysAgo(b);
-
-			if (aDays === null) return bDays === null ? 0 : -1;
-			if (bDays === null) return 1;
-
-			return bDays - aDays;
-		});
 		return [
 			{
 				...TIER_CONFIG.outer,
