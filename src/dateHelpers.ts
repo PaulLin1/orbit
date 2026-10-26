@@ -48,8 +48,14 @@ export function parseDate(value: unknown): Date | null {
 	return null;
 }
 
-export function formatLastDone(daysAgo: number | null): string {
-	if (daysAgo === null) return 'Never';
+export function formatLastDone(lastDone: string | null): string {
+	if (!lastDone) return 'Never';
+
+	const daysAgo = window.moment().startOf('day').diff(
+		window.moment(lastDone).startOf('day'),
+		'days',
+	);
+
 	if (daysAgo === 0) return 'Today';
 	if (daysAgo === 1) return 'Yesterday';
 

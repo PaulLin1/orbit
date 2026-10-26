@@ -11,29 +11,22 @@ export type OrbitActivity = {
 	tags: string[];
 	status: string;
 
-	// Derived from daily logs
-	lastDone: Date | null;
-	daysAgo: number | null;
-	dailyTime: number;
-	// dailySessions is just count in daily log
-	weeklyTime: number;
-	weeklySessions: number;
-
-	// Activity configuration
 	trackingType: TrackingType;
 	weeklyTimeGoal: number | null;
 	weeklySessionsGoal: number | null;
 	sessionLength: number | null;
+
+	lastDone: number | null;
 };
 
 export class ActivityCard {
 	constructor(private app: App) {}
 
-	renderActivityCard(
+	async renderActivityCard(
 		list: HTMLElement,
 		activity: OrbitActivity,
 		dailyLogService: DailyLogService,
-	): void {
+	): Promise<void> {
 		const card = list.createDiv({
 			cls: 'orbit-card',
 		});
@@ -49,56 +42,58 @@ export class ActivityCard {
 		});
 
 		info.createEl('div', { text: activity.name });
-		info.createEl('p', { text: activity.tags.join(' · ') });
 
 		row.createEl('span', {
-			text: formatLastDone(activity.daysAgo),
+			text: formatLastDone(activity.lastDone),
 			cls: 'orbit-time',
 		});
 
 		// Progress bar
 
-		// const progress = card.createDiv({
-		// 	cls: 'orbit-card-row orbit-progress',
-		// });
+		const progress = card.createDiv({
+			cls: 'orbit-card-row orbit-progress',
+		});
 
-		// const progressBar = progress.createDiv({
-		// 	cls: 'orbit-progress-bar',
-		// });
+		const progressBar = progress.createDiv({
+			cls: 'orbit-progress-bar',
+		});
 
-		// const progressFill = progressBar.createDiv({
-		// 	cls: 'orbit-progress-fill',
-		// });
+		const progressFill = progressBar.createDiv({
+			cls: 'orbit-progress-fill',
+		});
 
-		// const dayOfWeek = new Date().getDay();
+		const stats = await dailyLogService.getActivityWeeklyStats(activity.id);
 
-		// const weekProgress = (dayOfWeek + 1) / 7;
+		const actual =
+			activity.trackingType === 'time'
+				? stats.totalMinutes
+				: stats.sessions;
 
-		// const actual =
-		// 	activity.trackingType === 'time'
-		// 		? activity.weeklyTime
-		// 		: activity.weeklySessions;
+		const goal =
+			activity.trackingType === 'time'
+				? activity.weeklyTimeGoal
+				: activity.weeklySessionsGoal;
 
-		// const goal =
-		// 	activity.trackingType === 'time'
-		// 		? activity.weeklyTimeGoal
-		// 		: activity.weeklySessionsGoal;
+		const safeGoal = goal ?? 0;
 
-		// const percent = goal > 0 ? Math.min(100, (actual / goal) * 100) : 0;
+		const percent =
+			safeGoal > 0 ? Math.min(100, (actual / safeGoal) * 100) : 0;
 
-		// const expected = goal * weekProgress;
-		// const ratio = expected > 0 ? actual / expected : 0;
-		// const colorClass =
-		// 	ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
+		const dayOfWeek = window.moment().day();
+		const weekProgress = (dayOfWeek + 1) / 7;
+		const expected = safeGoal * weekProgress;
+		const ratio = expected > 0 ? actual / expected : 0;
 
-		// progressFill.style.width = `${percent}%`;
-		// progressFill.classList.remove('is-high', 'is-medium', 'is-low');
-		// progressFill.classList.add(colorClass);
+		const colorClass =
+			ratio >= 1 ? 'is-high' : ratio >= 0.75 ? 'is-medium' : 'is-low';
 
-		// progress.createDiv({
-		// 	cls: `orbit-progress-percent ${colorClass}`,
-		// 	text: `${Math.round(percent)}%`,
-		// });
+		progressFill.style.width = `${percent}%`;
+		progressFill.classList.add(colorClass);
+
+		progress.createDiv({
+			cls: `orbit-progress-percent ${colorClass}`,
+			text: `${Math.round(percent)}%`,
+		});
 
 		// Adding time
 

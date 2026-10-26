@@ -109,10 +109,43 @@ export class DailyLogService {
 		};
 	}
 
+    async getActivityWeeklyStats(
+	activityId: string,
+): Promise<{ totalMinutes: number; sessions: number }> {
+	const today = window.moment();
+	const weekStart = today.clone().startOf('week');
+
+	let totalMinutes = 0;
+	let sessions = 0;
+
+	for (
+		let day = weekStart.clone();
+		day.isSameOrBefore(today, 'day');
+		day.add(1, 'day')
+	) {
+		const logFile = await this.getLog(day.format('YYYY-MM-DD'));
+
+		const frontmatter =
+			this.app.metadataCache.getFileCache(logFile)?.frontmatter;
+
+		const dailySessions = Array.isArray(frontmatter?.sessions)
+			? frontmatter.sessions
+			: [];
+
+		for (const session of dailySessions) {
+			if (session.activity_id !== activityId) continue;
+
+			totalMinutes += Number(session.minutes) || 0;
+			sessions++;
+		}
+	}
+
+	return { totalMinutes, sessions };
+}
+
 	async recordSession(activityId: string, minutes: number): Promise<void> {
 		const logFile = await this.getLog(this.todayDate);
 
-		// Append the session
 		await this.app.fileManager.processFrontMatter(
 			logFile,
 			(frontmatter) => {
@@ -131,5 +164,30 @@ export class DailyLogService {
 				frontmatter.sessions = sessions;
 			},
 		);
+
+		const activityFile = this.app.vault.getFiles().find((file) => {
+			const frontmatter =
+				this.app.metadataCache.getFileCache(file)?.frontmatter;
+
+			return frontmatter?.orbit_id === activityId;
+		});
+
+		if (activityFile) {
+			await this.app.fileManager.processFrontMatter(
+				activityFile,
+				(frontmatter) => {
+					const lastDone = frontmatter.last_done;
+
+					if (
+						!lastDone ||
+						window
+							.moment(this.todayDate)
+							.isAfter(window.moment(lastDone), 'day')
+					) {
+						frontmatter.last_done = this.todayDate;
+					}
+				},
+			);
+		}
 	}
 }

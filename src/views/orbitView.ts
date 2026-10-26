@@ -106,9 +106,8 @@ export class FeedView extends ItemView {
 	private async renderStats(root: HTMLElement): Promise<void> {
 		const statsDiv = root.createDiv({ cls: 'orbit-stats' });
 
-const dailyStats = await this.dailyLogService.getDailyStats();
-const weeklyStats = await this.dailyLogService.getWeeklyStats();
-
+		const dailyStats = await this.dailyLogService.getDailyStats();
+		const weeklyStats = await this.dailyLogService.getWeeklyStats();
 
 		const items = [
 			{
@@ -192,7 +191,7 @@ const weeklyStats = await this.dailyLogService.getWeeklyStats();
 		});
 
 		for (const activity of activities) {
-			this.activityCard.renderActivityCard(
+			await this.activityCard.renderActivityCard(
 				list,
 				activity,
 				this.dailyLogService,
@@ -209,7 +208,6 @@ const weeklyStats = await this.dailyLogService.getWeeklyStats();
 			.getMarkdownFiles()
 			.filter((file) => file.parent?.path === activitiesFolderPath);
 
-		const logFile = await this.dailyLogService.getLog();
 		const activities: OrbitActivity[] = [];
 
 		for (const file of activitiesFiles) {
@@ -247,12 +245,7 @@ const weeklyStats = await this.dailyLogService.getWeeklyStats();
 						? Number(frontmatter.defaults.session_length)
 						: null,
 
-				// Derived from daily logs; calculate these separately.
-				lastDone: null,
-				daysAgo: null,
-				dailyTime: 0,
-				weeklyTime: 0,
-				weeklySessions: 0,
+				lastDone: frontmatter.last_done,
 			});
 		}
 
@@ -268,23 +261,42 @@ const weeklyStats = await this.dailyLogService.getWeeklyStats();
 			(activity) => activity.status === 'on-hold',
 		);
 
-		const outer = active.filter(
-			(activity) => activity.daysAgo === null || activity.daysAgo >= 3,
-		);
+		const daysAgo = (activity: OrbitActivity): number | null =>
+			activity.lastDone
+				? window
+						.moment()
+						.startOf('day')
+						.diff(
+							window.moment(activity.lastDone).startOf('day'),
+							'days',
+						)
+				: null;
 
-		const mid = active.filter(
-			(activity) =>
-				activity.daysAgo !== null &&
-				activity.daysAgo >= 1 &&
-				activity.daysAgo < 3,
-		);
+		const outer = active.filter((activity) => {
+			const days = daysAgo(activity);
+			return days === null || days >= 3;
+		});
 
-		const inner = active.filter(
-			(activity) => activity.daysAgo !== null && activity.daysAgo < 1,
-		);
 
-		outer.sort((a, b) => (b.daysAgo ?? Infinity) - (a.daysAgo ?? Infinity));
+		const mid = active.filter((activity) => {
+			const days = daysAgo(activity);
+			return days !== null && days >= 1 && days < 3;
+		});
 
+		const inner = active.filter((activity) => {
+			const days = daysAgo(activity);
+			return days !== null && days < 1;
+		});
+
+		outer.sort((a, b) => {
+			const aDays = daysAgo(a);
+			const bDays = daysAgo(b);
+
+			if (aDays === null) return bDays === null ? 0 : -1;
+			if (bDays === null) return 1;
+
+			return bDays - aDays;
+		});
 		return [
 			{
 				...TIER_CONFIG.outer,
