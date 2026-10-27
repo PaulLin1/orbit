@@ -1,8 +1,8 @@
 import type { OrbitActivity, OrbitTier } from '../types';
-import { DailyLogService } from './dailyLogService';
+import type { DailyLogService } from './dailyLogService';
 import {
-	ActivityProgress,
-	ProgressLevel,
+	type ActivityProgress,
+	type ProgressLevel,
 	getActivityProgress,
 } from './progress';
 

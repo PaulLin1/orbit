@@ -1,0 +1,207 @@
+.orbit-sidebar {
+	padding: 16px;
+
+	/* Header */
+	.orbit-header {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		padding-bottom: 24px;
+		border-bottom: 1px solid var(--text-muted);
+
+		h2 {
+			margin: 0;
+			font-size: 24px;
+		}
+
+		p {
+			margin: 0;
+			color: var(--text-muted);
+		}
+	}
+
+	.orbit-settings {
+		margin-left: auto;
+	}
+
+	/* Stats */
+	.orbit-stats {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 16px;
+		padding: 24px 0;
+		border-bottom: 1px solid var(--text-muted);
+
+		p {
+			margin: 0 0 8px;
+			color: var(--text-muted);
+		}
+
+		h1 {
+			margin: 0;
+			font-size: 32px;
+		}
+	}
+
+	/* Tiers */
+	.orbit-tier {
+		margin: 28px 0;
+	}
+
+	.orbit-tier-header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 12px;
+
+		h3 {
+			margin: 0;
+		}
+
+		p {
+			margin: 3px 0 0;
+			color: var(--text-muted);
+			font-size: 13px;
+		}
+
+		svg {
+			color: var(--text-muted);
+		}
+	}
+
+	.orbit-divider {
+		margin: 24px 0;
+		border-bottom: 1px solid var(--text-muted);
+		border-radius: 14px;
+	}
+
+	.orbit-list {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	/* Activity card */
+	.orbit-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 16px;
+		padding: 16px;
+		border: 2px solid var(--background-modifier-border);
+		border-radius: 14px;
+		cursor: pointer;
+		transition: border-color 150ms ease;
+
+		&:hover {
+			background: var(--background-modifier-hover);
+		}
+
+		&.is-expanded {
+			border-color: var(--interactive-accent);
+		}
+
+		&:not(.is-expanded) .orbit-expanded {
+			display: none;
+		}
+	}
+
+	.orbit-card-row {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.orbit-info {
+		flex: 1;
+		min-width: 0;
+		font-size: 18px;
+	}
+
+	.orbit-time {
+		color: var(--text-muted);
+		font-size: 13px;
+	}
+
+	/* Progress */
+	.orbit-progress {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 4px 10px;
+	}
+
+	.orbit-progress-bar {
+		min-width: 0;
+		height: 5px;
+		background-color: var(--background-modifier-border);
+		border-radius: 999px;
+		overflow: hidden;
+	}
+
+	.orbit-progress-fill {
+		height: 100%;
+		border-radius: 999px;
+		transition: width 200ms ease;
+
+		&.is-low { background-color: var(--color-red); }
+		&.is-medium { background-color: var(--color-yellow); }
+		&.is-high { background-color: var(--color-green); }
+	}
+
+	.orbit-progress-percent {
+		min-width: 36px;
+		text-align: right;
+		font-size: 0.8em;
+		color: var(--text-muted);
+		font-variant-numeric: tabular-nums;
+
+		&.is-low { color: var(--color-red); }
+		&.is-medium { color: var(--color-yellow); }
+		&.is-high { color: var(--color-green); }
+	}
+
+	.orbit-progress-detail {
+		grid-column: 1 / -1;
+		font-size: 0.8em;
+		color: var(--text-muted);
+	}
+
+	/* Expanded card: log time */
+	.orbit-expanded {
+		padding: 0 16px 16px;
+		cursor: default;
+	}
+
+	.orbit-time-controls {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.orbit-time-value {
+		font-size: 14px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.orbit-time-slider {
+		flex: 1;
+		min-width: 0;
+		margin: 0;
+		cursor: pointer;
+		accent-color: var(--interactive-accent);
+	}
+
+	.orbit-confirm-button {
+		flex-shrink: 0;
+		padding: 6px 16px;
+		border-radius: 8px;
+		background: var(--interactive-accent);
+		color: var(--text-on-accent);
+		font-weight: 600;
+		cursor: pointer;
+	}
+}

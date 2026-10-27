@@ -1,31 +1,51 @@
 import { Plugin } from 'obsidian';
-import { VIEW_TYPE_ORBIT } from './constants';
-import { OrbitView } from './ui/orbitView';
+import { VIEW_TYPE_DASHBOARD, VIEW_TYPE_SIDEBAR } from './constants';
+import { DashboardView } from './ui/dashboard/dashboardView';
+import { SidebarView } from './ui/sidebar/sidebarView';
 
 export default class Orbit extends Plugin {
 	async onload() {
-		this.registerView(VIEW_TYPE_ORBIT, (leaf) => new OrbitView(leaf));
+		this.registerView(VIEW_TYPE_SIDEBAR, (leaf) => new SidebarView(leaf));
+
+		this.registerView(
+			VIEW_TYPE_DASHBOARD,
+			(leaf) => new DashboardView(leaf),
+		);
 
 		this.addRibbonIcon('orbit', 'Open Orbit', () => {
-			void this.activateView();
+			void this.activateView(VIEW_TYPE_SIDEBAR);
 		});
+
+		this.addRibbonIcon(
+			'layout-dashboard',
+			'Open Orbit Dashboard',
+			() => {
+				void this.activateView(VIEW_TYPE_DASHBOARD);
+			},
+		);
 
 		this.addCommand({
 			id: 'open-orbit',
-			name: 'Open view',
-			callback: () => void this.activateView(),
+			name: 'Open Orbit view',
+			callback: () => void this.activateView(VIEW_TYPE_SIDEBAR),
+		});
+
+		this.addCommand({
+			id: 'open-orbit-dashboard',
+			name: 'Open Orbit Dashboard',
+			callback: () => void this.activateView(VIEW_TYPE_DASHBOARD),
 		});
 	}
 
-	async activateView() {
+	async activateView(type: string) {
 		const { workspace } = this.app;
 
-		let leaf = workspace.getLeavesOfType(VIEW_TYPE_ORBIT)[0];
+		let leaf = workspace.getLeavesOfType(type)[0];
 
 		if (!leaf) {
 			leaf = workspace.getRightLeaf(false)!;
 			await leaf.setViewState({
-				type: VIEW_TYPE_ORBIT,
+				type,
 				active: true,
 			});
 		}

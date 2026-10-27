@@ -17,3 +17,7 @@ export function formatDuration(minutes: number): string {
 
 	return `${minutes / 60} hr${minutes > 60 ? 's' : ''}`;
 }
+
+export function formatHours(minutes: number): string {
+	return String(Number((minutes / 60).toFixed(1)));
+}

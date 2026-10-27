@@ -1,10 +1,21 @@
-import { App, TFile } from 'obsidian';
-import { DAILY_LOGS_FOLDER, DATE_FORMAT, ORBIT_FOLDER } from '../constants';
-import type { LogSession } from '../types';
+import { TFile, type App } from 'obsidian';
+import {
+	DAILY_LOGS_FOLDER,
+	DATE_FORMAT,
+	LOG_TYPE,
+	ORBIT_FOLDER,
+} from '../constants';
+import type { ActivityFrontmatter, LogSession } from '../types';
+import { loadActivities } from './activities';
 
 export type LogStats = {
 	uniqueActivities: number;
 	totalMinutes: number;
+};
+
+export type DayStats = LogStats & {
+	date: string;
+	activityIds: string[];
 };
 
 export type ActivityWeeklyStats = {
@@ -18,56 +29,36 @@ type LogFrontmatter = {
 	sessions?: LogSession[];
 };
 
-type ActivityFrontmatter = {
-	orbit_id?: string;
-	last_done?: string;
-};
-
 export class DailyLogService {
 	constructor(private app: App) {}
 
-	async getLog(date: string): Promise<TFile> {
-		const filePath = `${DAILY_LOGS_FOLDER}/${date}.md`;
-
-		for (const folder of [ORBIT_FOLDER, DAILY_LOGS_FOLDER]) {
-			if (!this.app.vault.getAbstractFileByPath(folder)) {
-				await this.app.vault.createFolder(folder);
-			}
-		}
-
-		const existing = this.app.vault.getAbstractFileByPath(filePath);
-
-		if (existing instanceof TFile) return existing;
-
-		if (existing) {
-			throw new Error(`Path exists but is not a file: ${filePath}`);
-		}
-
-		return this.app.vault.create(
-			filePath,
-			[
-				'---',
-				'type: orbit-daily-log',
-				`date: ${date}`,
-				'sessions: []',
-				'---',
-				'',
-			].join('\n'),
-		);
-	}
+	// Reads
 
 	async getDailyStats(): Promise<LogStats> {
-		return summarize(await this.getSessions(today()));
+		return summarize(this.getSessions(today()));
 	}
 
 	async getWeeklyStats(): Promise<LogStats> {
-		return summarize(await this.getWeekSessions());
+		return summarize(this.getWeekSessions());
+	}
+
+	// One entry per day of the current week, including days with no sessions
+	async getWeekDays(): Promise<DayStats[]> {
+		return weekDates().map((date) => {
+			const sessions = this.getSessions(date);
+
+			return {
+				date,
+				activityIds: uniqueActivityIds(sessions),
+				...summarize(sessions),
+			};
+		});
 	}
 
 	async getActivityWeeklyStats(
 		activityId: string,
 	): Promise<ActivityWeeklyStats> {
-		const sessions = (await this.getWeekSessions()).filter(
+		const sessions = this.getWeekSessions().filter(
 			(session) => session.activity_id === activityId,
 		);
 
@@ -77,26 +68,25 @@ export class DailyLogService {
 		};
 	}
 
+	// Writes
+
 	async recordSession(activityId: string, minutes: number): Promise<void> {
 		const date = today();
-		const logFile = await this.getLog(date);
+		const logFile = await this.getOrCreateLog(date);
 
 		await this.app.fileManager.processFrontMatter(
 			logFile,
 			(frontmatter: LogFrontmatter) => {
-				const sessions = Array.isArray(frontmatter.sessions)
-					? frontmatter.sessions
-					: [];
-
-				sessions.push({
-					id: crypto.randomUUID(),
-					activity_id: activityId,
-					minutes,
-				});
-
-				frontmatter.type = 'orbit-daily-log';
+				frontmatter.type = LOG_TYPE;
 				frontmatter.date = date;
-				frontmatter.sessions = sessions;
+				frontmatter.sessions = [
+					...readSessions(frontmatter),
+					{
+						id: crypto.randomUUID(),
+						activity_id: activityId,
+						minutes,
+					},
+				];
 			},
 		);
 
@@ -107,17 +97,14 @@ export class DailyLogService {
 		activityId: string,
 		date: string,
 	): Promise<void> {
-		const activityFile = this.app.vault.getMarkdownFiles().find((file) => {
-			const frontmatter = this.app.metadataCache.getFileCache(file)
-				?.frontmatter as ActivityFrontmatter | undefined;
+		const activity = loadActivities(this.app).find(
+			(activity) => activity.id === activityId,
+		);
 
-			return frontmatter?.orbit_id === activityId;
-		});
-
-		if (!activityFile) return;
+		if (!activity) return;
 
 		await this.app.fileManager.processFrontMatter(
-			activityFile,
+			activity.file,
 			(frontmatter: ActivityFrontmatter) => {
 				const lastDone = frontmatter.last_done;
 
@@ -131,32 +118,74 @@ export class DailyLogService {
 		);
 	}
 
-	private async getSessions(date: string): Promise<LogSession[]> {
-		const logFile = await this.getLog(date);
+	// Log files
+
+	private getSessions(date: string): LogSession[] {
+		const logFile = this.findLog(date);
+		if (!logFile) return [];
+
 		const frontmatter = this.app.metadataCache.getFileCache(logFile)
 			?.frontmatter as LogFrontmatter | undefined;
 
-		return Array.isArray(frontmatter?.sessions) ? frontmatter.sessions : [];
+		return readSessions(frontmatter);
 	}
 
-	private async getWeekSessions(): Promise<LogSession[]> {
-		const now = window.moment();
-		const sessions: LogSession[] = [];
+	private getWeekSessions(): LogSession[] {
+		return weekDates().flatMap((date) => this.getSessions(date));
+	}
 
-		for (
-			let day = now.clone().startOf('week');
-			day.isSameOrBefore(now, 'day');
-			day.add(1, 'day')
-		) {
-			sessions.push(...(await this.getSessions(day.format(DATE_FORMAT))));
+	private findLog(date: string): TFile | null {
+		const file = this.app.vault.getAbstractFileByPath(logPath(date));
+
+		return file instanceof TFile ? file : null;
+	}
+
+	private async getOrCreateLog(date: string): Promise<TFile> {
+		const existing = this.findLog(date);
+		if (existing) return existing;
+
+		await this.ensureFolders();
+
+		return this.app.vault.create(
+			logPath(date),
+			[
+				'---',
+				`type: ${LOG_TYPE}`,
+				`date: ${date}`,
+				'sessions: []',
+				'---',
+				'',
+			].join('\n'),
+		);
+	}
+
+	private async ensureFolders(): Promise<void> {
+		for (const folder of [ORBIT_FOLDER, DAILY_LOGS_FOLDER]) {
+			if (!this.app.vault.getAbstractFileByPath(folder)) {
+				await this.app.vault.createFolder(folder);
+			}
 		}
-
-		return sessions;
 	}
+}
+
+function logPath(date: string): string {
+	return `${DAILY_LOGS_FOLDER}/${date}.md`;
 }
 
 function today(): string {
 	return window.moment().format(DATE_FORMAT);
+}
+
+function weekDates(): string[] {
+	const start = window.moment().startOf('week');
+
+	return Array.from({ length: 7 }, (_, i) =>
+		start.clone().add(i, 'days').format(DATE_FORMAT),
+	);
+}
+
+function readSessions(frontmatter: LogFrontmatter | undefined): LogSession[] {
+	return Array.isArray(frontmatter?.sessions) ? frontmatter.sessions : [];
 }
 
 function sumMinutes(sessions: LogSession[]): number {
@@ -166,15 +195,19 @@ function sumMinutes(sessions: LogSession[]): number {
 	);
 }
 
-function summarize(sessions: LogSession[]): LogStats {
-	const activityIds = new Set(
-		sessions
-			.map((session) => session.activity_id)
-			.filter((id) => typeof id === 'string'),
-	);
+function uniqueActivityIds(sessions: LogSession[]): string[] {
+	return [
+		...new Set(
+			sessions
+				.map((session) => session.activity_id)
+				.filter((id) => typeof id === 'string'),
+		),
+	];
+}
 
+function summarize(sessions: LogSession[]): LogStats {
 	return {
-		uniqueActivities: activityIds.size,
+		uniqueActivities: uniqueActivityIds(sessions).length,
 		totalMinutes: sumMinutes(sessions),
 	};
 }

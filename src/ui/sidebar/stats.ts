@@ -1,4 +1,5 @@
-import { DailyLogService } from '../services/dailyLogService';
+import type { DailyLogService } from '../../services/dailyLogService';
+import { formatHours } from '../../utils/format';
 
 type StatItem = {
 	label: string;
@@ -9,7 +10,7 @@ type StatItem = {
 const TIME_DESCRIPTION = 'Time invested';
 const SESSIONS_DESCRIPTION = 'Activities completed';
 
-export async function renderStatsPanel(
+export async function renderStats(
 	root: HTMLElement,
 	dailyLogService: DailyLogService,
 ): Promise<void> {
@@ -21,12 +22,12 @@ export async function renderStatsPanel(
 	const items: StatItem[] = [
 		{
 			label: 'TODAY',
-			time: formatHours(dailyStats.totalMinutes),
+			time: `${formatHours(dailyStats.totalMinutes)}h`,
 			sessions: `${dailyStats.uniqueActivities}`,
 		},
 		{
 			label: 'THIS WEEK',
-			time: formatHours(weeklyStats.totalMinutes),
+			time: `${formatHours(weeklyStats.totalMinutes)}h`,
 			sessions: `${weeklyStats.uniqueActivities}`,
 		},
 	];
@@ -51,8 +52,4 @@ function renderStat(statsDiv: HTMLElement, item: StatItem): void {
 		value.setText(showTime ? item.time : item.sessions);
 		description.setText(showTime ? TIME_DESCRIPTION : SESSIONS_DESCRIPTION);
 	});
-}
-
-function formatHours(minutes: number): string {
-	return `${(minutes / 60).toFixed(1)}h`;
 }

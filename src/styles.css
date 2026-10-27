@@ -1,0 +1,3 @@
+/* Entry point: bundled by esbuild into styles.css at the plugin root. */
+@import './ui/sidebar/sidebar.css';
+@import './ui/dashboard/dashboard.css';

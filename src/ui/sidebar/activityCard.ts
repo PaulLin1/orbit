@@ -1,7 +1,11 @@
-import { DailyLogService } from '../services/dailyLogService';
-import { getActivityProgress } from '../services/progress';
-import type { OrbitActivity } from '../types';
-import { formatDuration, formatLastDone } from '../utils/format';
+import type { DailyLogService } from '../../services/dailyLogService';
+import { getActivityProgress } from '../../services/progress';
+import type { OrbitActivity } from '../../types';
+import {
+	formatDuration,
+	formatHours,
+	formatLastDone,
+} from '../../utils/format';
 
 const SLIDER_MIN = 15;
 const SLIDER_MAX = 120;
@@ -43,18 +47,31 @@ async function renderProgress(
 	const progressBar = progress.createDiv({ cls: 'orbit-progress-bar' });
 	const progressFill = progressBar.createDiv({ cls: 'orbit-progress-fill' });
 
-	const { percent, level } = await getActivityProgress(
+	const { percent, level, actual, goal } = await getActivityProgress(
 		activity,
 		dailyLogService,
 	);
 
-	progressFill.setCssProps({ width: `${Math.min(100, percent)}%` });
+	progressFill.setCssProps({
+		width: `${Math.min(100, percent)}%`,
+	});
 	progressFill.addClass(level);
 
 	progress.createDiv({
 		cls: `orbit-progress-percent ${level}`,
 		text: `${Math.round(percent)}%`,
 	});
+	if (activity.trackingType === 'time') {
+		progress.createDiv({
+			cls: 'orbit-progress-detail',
+			text: `${formatHours(actual)} of ${formatHours(goal)} hours`,
+		});
+	} else {
+		progress.createDiv({
+			cls: 'orbit-progress-detail',
+			text: `${actual} of ${goal} sessions`,
+		});
+	}
 }
 
 function renderExpanded(

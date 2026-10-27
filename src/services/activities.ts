@@ -1,17 +1,6 @@
-import { App } from 'obsidian';
+import type { App } from 'obsidian';
 import { ACTIVITIES_FOLDER } from '../constants';
-import type { OrbitActivity } from '../types';
-
-type ActivityFrontmatter = {
-	orbit_id?: string;
-	title?: string;
-	tags?: unknown;
-	status?: string;
-	tracking?: { type?: string };
-	goals?: { weekly_time?: number; weekly_sessions?: number };
-	defaults?: { session_length?: number };
-	last_done?: string;
-};
+import type { ActivityFrontmatter, OrbitActivity } from '../types';
 
 export function loadActivities(app: App): OrbitActivity[] {
 	const activities: OrbitActivity[] = [];

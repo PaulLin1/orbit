@@ -1,13 +1,13 @@
 import { ItemView, WorkspaceLeaf, debounce, setIcon } from 'obsidian';
-import { ORBIT_FOLDER, VIEW_TYPE_ORBIT } from '../constants';
-import { loadActivities } from '../services/activities';
-import { DailyLogService } from '../services/dailyLogService';
-import { getTiers } from '../services/tiers';
-import type { OrbitTier } from '../types';
+import { ORBIT_FOLDER, VIEW_TYPE_SIDEBAR } from '../../constants';
+import { loadActivities } from '../../services/activities';
+import { DailyLogService } from '../../services/dailyLogService';
+import { getTiers } from '../../services/tiers';
+import type { OrbitTier } from '../../types';
 import { renderActivityCard } from './activityCard';
-import { renderStatsPanel } from './statsPanel';
+import { renderStats } from './stats';
 
-export class OrbitView extends ItemView {
+export class SidebarView extends ItemView {
 	private dailyLogService: DailyLogService;
 
 	constructor(leaf: WorkspaceLeaf) {
@@ -16,7 +16,7 @@ export class OrbitView extends ItemView {
 	}
 
 	getViewType(): string {
-		return VIEW_TYPE_ORBIT;
+		return VIEW_TYPE_SIDEBAR;
 	}
 
 	getDisplayText(): string {
@@ -43,10 +43,10 @@ export class OrbitView extends ItemView {
 		const root = this.contentEl;
 
 		root.empty();
-		root.addClass('orbit');
+		root.addClass('orbit-sidebar');
 
 		this.renderHeader(root);
-		await renderStatsPanel(root, this.dailyLogService);
+		await renderStats(root, this.dailyLogService);
 
 		const activities = loadActivities(this.app);
 		const tiers = await getTiers(activities, this.dailyLogService);

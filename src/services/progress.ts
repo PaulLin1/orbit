@@ -1,5 +1,5 @@
 import type { OrbitActivity } from '../types';
-import { DailyLogService } from './dailyLogService';
+import type { DailyLogService } from './dailyLogService';
 
 export type ProgressLevel = 'is-high' | 'is-medium' | 'is-low';
 
@@ -7,6 +7,8 @@ export type ActivityProgress = {
 	percent: number;
 	ratio: number;
 	level: ProgressLevel;
+	actual: number;
+	goal: number;
 };
 
 export async function getActivityProgress(
@@ -16,7 +18,9 @@ export async function getActivityProgress(
 	const stats = await dailyLogService.getActivityWeeklyStats(activity.id);
 
 	const actual =
-		activity.trackingType === 'time' ? stats.totalMinutes : stats.sessions;
+		activity.trackingType === 'time'
+			? stats.totalMinutes
+			: stats.sessions;
 
 	const goal =
 		activity.trackingType === 'time'
@@ -25,7 +29,6 @@ export async function getActivityProgress(
 
 	const safeGoal = goal ?? 0;
 
-	// Uncapped, so overfilled goals show their real percent
 	const percent = safeGoal > 0 ? (actual / safeGoal) * 100 : 0;
 
 	const dayOfWeek = window.moment().day();
@@ -40,5 +43,11 @@ export async function getActivityProgress(
 				? 'is-medium'
 				: 'is-low';
 
-	return { percent, ratio, level };
+	return {
+		percent,
+		ratio,
+		level,
+		actual,
+		goal: safeGoal,
+	};
 }
