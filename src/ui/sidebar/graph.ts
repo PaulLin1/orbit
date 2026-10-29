@@ -15,19 +15,19 @@ export async function renderGraph(
 
 	const graph = card.createDiv({ cls: 'orbit-graph' });
 
-	const timeValues = weekSessions.map((day) => day.totalMinutes);
+	const timeValues = weekSessions.map((day) => day.totalMinutes / 60);
 	const sessionValues = weekSessions.map((day) => day.uniqueActivities);
 
 	const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 	timeValues.forEach((value, i) => {
 		const column = graph.createDiv({ cls: 'orbit-graph-column' });
-	column.createEl('span', {
-		cls: 'orbit-graph-value',
-		text: String(value),
-	});
+		column.createEl('span', {
+			cls: 'orbit-graph-value',
+			text: String(value) + 'h',
+		});
 		const bar = column.createDiv({ cls: 'orbit-graph-bar' });
-		bar.style.height = `${value}%`;
+		bar.style.height = `${value * 10}%`;
 
 		column.createEl('span', { text: days[i] });
 	});

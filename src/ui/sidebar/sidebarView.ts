@@ -5,10 +5,11 @@ import { DailyLogService } from '../../services/dailyLogService';
 import { getTiers } from '../../services/tiers';
 import type { OrbitTier } from '../../types';
 import { renderActivityCard } from './activityCard';
-import { renderStats } from './stats';
+import { renderStats, type StatsState } from './stats';
 
 export class SidebarView extends ItemView {
 	private dailyLogService: DailyLogService;
+	private statsState: StatsState = { expanded: false };
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
@@ -46,7 +47,12 @@ export class SidebarView extends ItemView {
 		root.addClass('orbit-sidebar');
 
 		this.renderHeader(root);
-		await renderStats(root, this.dailyLogService);
+		await renderStats(
+			root,
+			this.app,
+			this.dailyLogService,
+			this.statsState,
+		);
 
 		const activities = loadActivities(this.app);
 		const tiers = await getTiers(activities, this.dailyLogService);

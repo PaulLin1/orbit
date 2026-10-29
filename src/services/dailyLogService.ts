@@ -11,6 +11,7 @@ import { loadActivities } from './activities';
 export type LogStats = {
 	uniqueActivities: number;
 	totalMinutes: number;
+	totalSessions: number;
 };
 
 export type DayStats = LogStats & {
@@ -209,5 +210,6 @@ function summarize(sessions: LogSession[]): LogStats {
 	return {
 		uniqueActivities: uniqueActivityIds(sessions).length,
 		totalMinutes: sumMinutes(sessions),
+		totalSessions: sessions.length,
 	};
 }
