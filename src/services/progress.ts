@@ -37,7 +37,7 @@ export async function getActivityProgress(
 	const ratio = expected > 0 ? actual / expected : 0;
 
 	const level: ProgressLevel =
-		percent >= 100 || ratio >= 1
+		percent >= 100 || ratio >= 0.9
 			? 'is-high'
 			: ratio >= 0.5
 				? 'is-medium'

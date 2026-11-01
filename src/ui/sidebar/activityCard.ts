@@ -131,16 +131,15 @@ function renderTimeControls(
 	const slider = controls.createEl('input', {
 		type: 'range',
 		cls: 'orbit-time-slider',
-		attr: {
-			min: String(SLIDER_MIN),
-			max: String(SLIDER_MAX),
-			step: String(SLIDER_STEP),
-			value: String(SLIDER_MIN),
-		},
 	});
 
+	slider.min = String(SLIDER_MIN);
+	slider.max = String(SLIDER_MAX);
+	slider.step = String(SLIDER_STEP);
+	slider.value = String(SLIDER_MIN);
+
 	slider.addEventListener('input', () => {
-		timeValue.setText(formatDuration(Number(slider.value)));
+		timeValue.setText(formatDuration(slider.valueAsNumber));
 	});
 
 	const button = controls.createEl('button', {
@@ -150,7 +149,12 @@ function renderTimeControls(
 
 	button.addEventListener('click', (event) => {
 		event.stopPropagation();
-		void recordSession(dailyLogService, activityId, Number(slider.value));
+
+		void recordSession(
+			dailyLogService,
+			activityId,
+			slider.valueAsNumber,
+		);
 	});
 }
 

@@ -28,6 +28,7 @@ export default class Orbit extends Plugin {
 				type,
 				active: true,
 			});
+			
 		}
 
 		await workspace.revealLeaf(leaf);
