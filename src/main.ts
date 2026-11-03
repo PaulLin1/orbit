@@ -1,10 +1,10 @@
 import { Plugin } from 'obsidian';
 import { VIEW_TYPE_SIDEBAR } from './constants';
-import { SidebarView } from './ui/sidebar/sidebarView';
+import { OrbitView } from './ui/orbitView';
 
 export default class Orbit extends Plugin {
 	async onload() {
-		this.registerView(VIEW_TYPE_SIDEBAR, (leaf) => new SidebarView(leaf));
+		this.registerView(VIEW_TYPE_SIDEBAR, (leaf) => new OrbitView(leaf));
 
 		this.addRibbonIcon('orbit', 'Open Orbit', () => {
 			void this.activateView(VIEW_TYPE_SIDEBAR);
