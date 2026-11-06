@@ -1,4 +1,4 @@
-import { TFile, type App } from 'obsidian';
+import { TFile, TFolder, type App } from 'obsidian';
 import {
 	DAILY_LOGS_FOLDER,
 	DATE_FORMAT,
@@ -6,7 +6,7 @@ import {
 	ORBIT_FOLDER,
 } from '../constants';
 import type { ActivityFrontmatter, LogSession } from '../types';
-import { loadActivities } from './activities';
+import type { ActivityService } from './activities';
 
 export type LogStats = {
 	uniqueActivities: number;
@@ -24,6 +24,12 @@ export type ActivityWeeklyStats = {
 	sessions: number;
 };
 
+export type WeekTotals = {
+	start: string;
+	minutes: Record<string, number>;
+	sessions: Record<string, number>;
+};
+
 type LogFrontmatter = {
 	type?: string;
 	date?: string;
@@ -31,7 +37,10 @@ type LogFrontmatter = {
 };
 
 export class DailyLogService {
-	constructor(private app: App) {}
+	constructor(
+		private app: App,
+		private activities: ActivityService,
+	) {}
 
 	// Reads
 
@@ -69,6 +78,48 @@ export class DailyLogService {
 		};
 	}
 
+	// Per-activity totals for every completed week (not the current one),
+	// oldest first, from the first log through last week. Weeks with no
+	// logs are included as empty so gaps count as zero.
+	getCompletedWeeks(): WeekTotals[] {
+		const folder = this.app.vault.getAbstractFileByPath(DAILY_LOGS_FOLDER);
+		if (!(folder instanceof TFolder)) return [];
+
+		const thisWeek = window.moment().startOf('week');
+		const byWeek = new Map<string, WeekTotals>();
+
+		for (const file of folder.children) {
+			if (!(file instanceof TFile) || file.extension !== 'md') continue;
+
+			const date = window.moment(file.basename, DATE_FORMAT, true);
+			if (!date.isValid() || !date.isBefore(thisWeek)) continue;
+
+			const start = date.clone().startOf('week').format(DATE_FORMAT);
+			const week = byWeek.get(start) ?? emptyWeek(start);
+			byWeek.set(start, week);
+
+			for (const session of this.getSessions(file.basename)) {
+				const id = session.activity_id;
+				week.minutes[id] =
+					(week.minutes[id] ?? 0) + (Number(session.minutes) || 0);
+				week.sessions[id] = (week.sessions[id] ?? 0) + 1;
+			}
+		}
+
+		if (byWeek.size === 0) return [];
+
+		const weeks: WeekTotals[] = [];
+		const cursor = window.moment([...byWeek.keys()].sort()[0], DATE_FORMAT);
+
+		while (cursor.isBefore(thisWeek)) {
+			const start = cursor.format(DATE_FORMAT);
+			weeks.push(byWeek.get(start) ?? emptyWeek(start));
+			cursor.add(1, 'week');
+		}
+
+		return weeks;
+	}
+
 	// Writes
 
 	async recordSession(activityId: string, minutes: number): Promise<void> {
@@ -98,9 +149,7 @@ export class DailyLogService {
 		activityId: string,
 		date: string,
 	): Promise<void> {
-		const activity = loadActivities(this.app).find(
-			(activity) => activity.id === activityId,
-		);
+		const activity = this.activities.getById(activityId);
 
 		if (!activity) return;
 
@@ -167,6 +216,10 @@ export class DailyLogService {
 			}
 		}
 	}
+}
+
+function emptyWeek(start: string): WeekTotals {
+	return { start, minutes: {}, sessions: {} };
 }
 
 function logPath(date: string): string {

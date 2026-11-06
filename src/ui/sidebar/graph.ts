@@ -1,11 +1,11 @@
-import type { DailyLogService } from '../../services/dailyLogService';
-import { DayStats } from '../../services/dailyLogService';
+import type { OrbitServices } from '../../services';
+import type { DayStats } from '../../services/dailyLogService';
 
 export async function renderGraph(
 	root: HTMLElement,
-	dailyLogService: DailyLogService,
+	services: OrbitServices,
 ): Promise<void> {
-	const weekSessions: DayStats[] = await dailyLogService.getWeekDays();
+	const weekSessions: DayStats[] = await services.logs.getWeekDays();
 
 	const card = root.createDiv({ cls: 'orbit-stat orbit-graph-card' });
 

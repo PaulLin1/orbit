@@ -1,3 +1,4 @@
+import type { OrbitServices } from '../../services';
 import type { DailyLogService } from '../../services/dailyLogService';
 import { getActivityProgress } from '../../services/progress';
 import type { OrbitActivity } from '../../types';
@@ -14,13 +15,13 @@ const SLIDER_STEP = 15;
 export async function renderActivityCard(
 	list: HTMLElement,
 	activity: OrbitActivity,
-	dailyLogService: DailyLogService,
+	services: OrbitServices,
 ): Promise<void> {
 	const card = list.createDiv({ cls: 'orbit-card' });
 
 	renderHeader(card, activity);
-	await renderProgress(card, activity, dailyLogService);
-	renderExpanded(card, activity, dailyLogService);
+	await renderProgress(card, activity, services.logs);
+	renderExpanded(card, activity, services.logs);
 }
 
 function renderHeader(card: HTMLElement, activity: OrbitActivity): void {

@@ -1,10 +1,18 @@
 import { Plugin } from 'obsidian';
 import { VIEW_TYPE_SIDEBAR } from './constants';
+import { createServices, type OrbitServices } from './services';
 import { OrbitView } from './ui/orbitView';
 
 export default class Orbit extends Plugin {
+	services!: OrbitServices;
+
 	async onload() {
-		this.registerView(VIEW_TYPE_SIDEBAR, (leaf) => new OrbitView(leaf));
+		this.services = createServices(this.app);
+
+		this.registerView(
+			VIEW_TYPE_SIDEBAR,
+			(leaf) => new OrbitView(leaf, this.services),
+		);
 
 		this.addRibbonIcon('orbit', 'Open Orbit', () => {
 			void this.activateView(VIEW_TYPE_SIDEBAR);
@@ -28,7 +36,6 @@ export default class Orbit extends Plugin {
 				type,
 				active: true,
 			});
-			
 		}
 
 		await workspace.revealLeaf(leaf);

@@ -1,8 +1,8 @@
-import { setIcon, type App } from 'obsidian';
-import { loadActivities } from '../../services/activities';
-import type { DailyLogService } from '../../services/dailyLogService';
+import { setIcon } from 'obsidian';
+import type { OrbitServices } from '../../services';
 import { formatHours } from '../../utils/format';
 import { renderGraph } from './graph';
+import { renderGoals } from './goals';
 
 type StatItem = {
 	label: string;
@@ -30,8 +30,7 @@ const VIEWS: StatView[] = [
 
 export async function renderStats(
 	root: HTMLElement,
-	app: App,
-	dailyLogService: DailyLogService,
+	services: OrbitServices,
 	state: StatsState,
 ): Promise<void> {
 	const section = root.createDiv({ cls: 'orbit-stats-section' });
@@ -41,11 +40,9 @@ export async function renderStats(
 
 	const statsDiv = section.createDiv({ cls: 'orbit-stats' });
 
-	const dailyStats = await dailyLogService.getDailyStats();
-	const weeklyStats = await dailyLogService.getWeeklyStats();
-	const activeCount = loadActivities(app).filter(
-		(activity) => activity.status === 'active',
-	).length;
+	const dailyStats = await services.logs.getDailyStats();
+	const weeklyStats = await services.logs.getWeeklyStats();
+	const activeCount = services.activities.getActive().length;
 
 	const items: StatItem[] = [
 		{
@@ -79,7 +76,8 @@ export async function renderStats(
 		`${activeCount}`,
 		'In rotation',
 	);
-	await renderGraph(moreDiv, dailyLogService);
+	await renderGraph(moreDiv, services);
+	renderGoals(moreDiv, services);
 
 	renderToggle(section, state);
 }
